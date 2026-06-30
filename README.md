@@ -21,6 +21,10 @@ Importantes *
 Crear archivo de configuración llamado 'httpd.conf'. 
 ### [CGI](https://www.ionos.es/digitalguide/paginas-web/desarrollo-web/common-gateway-interface/)
 Common Gateway Interface, es una interfaz de los se­r­vi­do­res web. (Resumen, es un método de scripting que permite dinamizar las páginas y noi tener que cargar todo de golpe y solo según se soliciten).
+### Funciones
+La funcion poll() y select() son estandard que pueden funcionar en distintos sistemas operativos. La funcion de epoll() es específica de linux y ofrece un mejor rendimiento. En este proyecto investigaremos poll() y epoll().
+#### [POLL](https://man7.org/linux/man-pages/man2/poll.2.html)
+#### [EPOLL]
 - [CGI](https://en.wikipedia.org/wiki/Common_Gateway_Interface)
 - [HTTP](https://www.rfc-editor.org/info/rfc9111/)
 - [IETF](https://es.wikipedia.org/wiki/Grupo_de_Trabajo_de_Ingenier%C3%ADa_de_Internet)
