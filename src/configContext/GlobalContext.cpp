@@ -6,6 +6,7 @@ GlobalContext::GlobalContext()
 {}
 
 GlobalContext::GlobalContext(const GlobalContext& other)
+	: ConfigContext(other)
 {
 	*this = other;
 }
@@ -37,4 +38,23 @@ void GlobalContext::AddServer(const ServerContext& server)
 			throw std::invalid_argument("duplicate server block detected");
 	}
 	_server->push_back(server);
+}
+
+std::vector<ServerContext>* GlobalContext::GetServers() const
+{
+	return _server;
+}
+
+ServerContext* GlobalContext::GetServer(size_t index)
+{
+	if (!_server || index >= _server->size())
+		return NULL;
+	return &((*_server)[index]);
+}
+
+ServerContext* GlobalContext::GetLastServer()
+{
+	if (!_server || 1 > _server->size())
+		return NULL;
+	return &(_server->back());
 }

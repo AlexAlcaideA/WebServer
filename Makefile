@@ -19,18 +19,23 @@ SRCS_MAIN     = main.cpp Configuration.cpp
 
 # Archivos en src/configContext/
 CONFCONTEXT_DIR  = configContext
-CONFCONTEXT_SRCS = ConfigContext.cpp LocationContext.cpp
+CONFCONTEXT_SRCS = ConfigContext.cpp LocationContext.cpp ServerContext.cpp GlobalContext.cpp
+
+# Archivos en src/utils/
+UTILS_DIR        = utils
+UTILS_SRCS       = StringUtils.cpp
 
 # Concatenamos todas las fuentes con sus rutas relativas a src/
 SRCS = $(SRCS_MAIN) \
-       $(addprefix $(CONFCONTEXT_DIR)/, $(CONFCONTEXT_SRCS))
+       $(addprefix $(CONFCONTEXT_DIR)/, $(CONFCONTEXT_SRCS)) \
+	   $(addprefix $(UTILS_DIR)/, $(UTILS_SRCS))
 
 # -------------------------------------------------
 # Objetos y dependencias
 # -------------------------------------------------
 OBJS       = $(addprefix $(OBJDIR)/, $(SRCS:.cpp=.o))
 DEPS       = $(OBJS:.o=.d)
-OBJSUBDIRS = $(sort $(dir $(OBJS)))   # obj/ obj/configContext/
+OBJSUBDIRS = $(sort $(dir $(OBJS)))   # obj/ obj/configContext/ obj/utils/
 
 # -------------------------------------------------
 # Reglas

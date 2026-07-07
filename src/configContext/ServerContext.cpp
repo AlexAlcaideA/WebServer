@@ -6,6 +6,7 @@ ServerContext::ServerContext()
 {}
 
 ServerContext::ServerContext(const ServerContext& other)
+	: ConfigContext(other)
 {
 	*this = other;
 }
@@ -20,7 +21,7 @@ ServerContext& ServerContext::operator=(const ServerContext& other)
 		delete _serverName;
 		other._serverName == NULL ? _serverName = NULL : _serverName = new std::set<std::string>(*other._serverName);
 		delete _location;
-		other._location == NULL ? _location = NULL : _location = new std::set<LocationContext>(*other._location);
+		other._location == NULL ? _location = NULL : _location = new std::map<std::string, LocationContext>(*other._location);
 		delete _cgiHandlers;
 		other._cgiHandlers == NULL ? _cgiHandlers = NULL : _cgiHandlers = new std::map<std::string, std::string>(*other._cgiHandlers);
 	}
@@ -83,6 +84,17 @@ void ServerContext::AddServerName(const std::string& name)
 		throw std::invalid_argument("server_name duplicated: " + name);
 }
 
+void ServerContext::AddLocation(const LocationContext& location)
+{
+	if (!_location)
+		_location = new std::map<std::string, LocationContext>();
+
+	std::pair<std::map<std::string, LocationContext>::iterator, bool> result
+		= _location->insert(std::make_pair(location.GetPath(), location));
+	if (!result.second)
+		throw std::invalid_argument("duplicate location: " + location.GetPath());
+}
+
 void ServerContext::SetCgiHandler(const std::string& ext, const std::string& interp)
 {
 	if (!_cgiHandlers)
@@ -93,4 +105,28 @@ void ServerContext::SetCgiHandler(const std::string& ext, const std::string& int
 
 	if (!result.second)
 		throw std::invalid_argument("cgi_handler duplicated for extension: " + ext);
+}
+
+std::map<std::string, LocationContext>* ServerContext::GetLocations() const
+{
+	return _location;
+}
+
+LocationContext* ServerContext::GetLocation(size_t index)
+{
+	if (!_location || index >= _location->size())
+		return NULL;
+	std::map<std::string, LocationContext>::iterator it = _location->begin();
+	for (size_t i = 0; i < index; ++i)
+		++it;
+	return &(it->second);
+}
+
+LocationContext* ServerContext::GetLastLocation()
+{
+	if (!_location || _location->empty())
+		return NULL;
+	std::map<std::string, LocationContext>::iterator it = _location->end();
+	--it;
+	return &(it->second);
 }

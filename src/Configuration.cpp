@@ -1,55 +1,6 @@
 #include "../include/Configuration.hpp"
-
-Configuration::LocationContext::LocationContext()
-	: root(NULL), autoIndex(NULL), clientMaxBodySize(NULL),
-	index(NULL), cgiHandler(NULL), limitExcept(NULL),
-	uploadStore(NULL), returnVal(NULL)
-{}
-
-Configuration::LocationContext::~LocationContext()
-{
-	delete root;
-	delete autoIndex;
-	delete clientMaxBodySize;
-	delete index;
-	delete cgiHandler;
-	delete limitExcept;
-	delete uploadStore;
-	delete returnVal;
-}
-
-Configuration::ServerContext::ServerContext()
-	: listen(NULL), serverName(NULL), root(NULL),
-	index(NULL), errorPage(NULL), location(NULL),
-	autoIndex(NULL), clientMaxBodySize(NULL), cgiHandler(NULL)
-{}
-
-Configuration::ServerContext::~ServerContext()
-{
-	delete listen;
-	delete serverName;
-	delete root;
-	delete index;
-	delete errorPage;
-	delete location;
-	delete autoIndex;
-	delete clientMaxBodySize;
-	delete cgiHandler;
-}
-
-Configuration::GlobalContext::GlobalContext()
-	: root(NULL), index(NULL), errorPage(NULL),
-	autoIndex(NULL), clientMaxBodySize(NULL)
-{}
-
-Configuration::GlobalContext::~GlobalContext()
-{
-	delete root;
-	delete index;
-	delete errorPage;
-	delete autoIndex;
-	delete clientMaxBodySize;
-}
+#include <stack>
+#include "../include/utils/StringUtils.hpp"
 
 Configuration::Token::Token()
 {}
@@ -90,71 +41,258 @@ bool Configuration::ReadAndPreprocess(const std::string& path, std::string& cont
 
 Configuration::Token Configuration::GetNextToken(const std::string& src, size_t& pos)
 {
-    while (pos < src.size() && isspace(src[pos]))
+	while (pos < src.size() && isspace(src[pos]))
 		pos++;
-    if (pos >= src.size())
+	if (pos >= src.size())
 		return Configuration::Token(Token::END, "");
 
-    char c = src[pos];
-    if (c == '{')
+	char c = src[pos];
+	if (c == '{')
 	{
 		++pos;
 		return Configuration::Token(Token::OPEN_BRACE, "{");
 	}
-    if (c == '}')
+	if (c == '}')
 	{
 		++pos;
 		return Configuration::Token(Token::CLOSE_BRACE, "}");
 	}	
-    if (c == ';')
+	if (c == ';')
 	{
 		++pos;
 		return Configuration::Token(Token::SEMICOLON, ";");
 	}
 
-    size_t start = pos;
-    while (pos < src.size() && !isspace(src[pos]) && src[pos] != '{' && src[pos] != '}' && src[pos] != ';')
-        pos++;
-    return Token(Token::WORD, src.substr(start, pos - start));
+	size_t start = pos;
+	while (pos < src.size() && !isspace(src[pos]) && src[pos] != '{' && src[pos] != '}' && src[pos] != ';')
+		pos++;
+	return Token(Token::WORD, src.substr(start, pos - start));
 }
 
 void Configuration::ProcessDirective(const std::vector<std::string>& args,
 	State ctx, GlobalContext* global, ServerContext* server, LocationContext* location)
 {
-	std::string directive = args[0];
-	// args contiene la directiva y sus argumentos
-
-	// Contexto Global
-	if (ctx == GLOBAL)
+	if (args.empty())
+		return;
+	try
 	{
-		if (directive == "server")
+		switch (ctx)
 		{
-			/* ya manejado con '{' */
+			case GLOBAL:
+				if (global)
+					ProcessGlobalDirective(args, global);
+				break;
+			case SERVER:
+				if (server)
+					ProcessServerDirective(args, server);
+				break;
+			case LOCATION:
+				if (location)
+					ProcessLocationDirective(args, location);
+				break;
 		}
-		else if (directive == "root")
-			SetRoot(global, std::vector<std::string>(args.begin()+1, args.end()));
-		else if (directive == "index")
-			AddIndex(global, std::vector<std::string>(args.begin()+1, args.end()));
-		// ...
 	}
-	// Contexto Server
-	else if (ctx == SERVER && server)
+	catch (const std::exception& e)
 	{
-		if (directive == "location") { /* ya manejado */ }
-		else if (directive == "listen")
-			SetListen(server, args[1], args[2]);
-		else if (directive == "root") 
-			SetRoot(server, std::vector<std::string>(args.begin()+1, args.end()));
-		// ...
+		std::cerr << "Config error: " << e.what() << std::endl;
+		// Decide si continuar o relanzar
 	}
-	// Contexto Location
-	else if (ctx == LOCATION && location)
+}
+
+void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
+                                           GlobalContext* global)
+{
+	const std::string& directive = args[0];
+	if (directive == "server")
 	{
-		if (directive == "root")
-			SetRoot(location, std::vector<std::string>(args.begin()+1, args.end()));
-		else if (directive == "limit_except") setLimitExcept(location, ...);
-		// ...
+		std::cerr << "Error: 'server' debe ser un bloque (server { ... })" << std::endl;
+		return;
 	}
+	// Directivas comunes que puede tener GlobalContext (root, index, error_page, etc.)
+	// Se invocan mediante polimorfismo: global->SetRoot(...)
+	if (directive == "root")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("root requires a path");
+		global->SetRoot(args[1]);
+	}
+	else if (directive == "index")
+	{
+		for (size_t i = 1; i < args.size(); ++i)
+			global->AddIndex(args[i]);
+	}
+	else if (directive == "autoindex")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("autoindex requires on/off");
+		global->SetAutoIndex(args[1] == "on");
+	}
+	else if (directive == "client_max_body_size")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("client_max_body_size requires a size");
+		global->SetClientMaxBodySize(args[1]);
+	}
+	else if (directive == "error_page")
+	{
+		if (args.size() < 3)
+			throw std::invalid_argument("error_page requires code and page");
+		unsigned int code;
+		if (!utils::stringToUnsignedInt(args[1], code))
+			throw std::invalid_argument("invalid error code: " + args[1]);
+		global->AddErrorPage(code, args[2]);
+	}
+	// No hay directivas específicas de global más allá de las comunes
+}
+
+void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
+    ServerContext* server)
+{
+	const std::string& directive = args[0];
+
+	// Directivas comunes (también puede usarlas un servidor)
+	if (directive == "root")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("root requires a path");
+		server->SetRoot(args[1]);
+	}
+	else if (directive == "index")
+	{
+		for (size_t i = 1; i < args.size(); ++i)
+			server->AddIndex(args[i]);
+	}
+	else if (directive == "autoindex")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("autoindex requires on/off");
+		server->SetAutoIndex(args[1] == "on");
+	}
+	else if (directive == "client_max_body_size")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("client_max_body_size requires a size");
+		server->SetClientMaxBodySize(args[1]);
+	}
+	else if (directive == "error_page")
+	{
+		if (args.size() < 3)
+			throw std::invalid_argument("error_page requires code and page");
+		unsigned int code;
+		if (!utils::stringToUnsignedInt(args[1], code))
+			throw std::invalid_argument("invalid error code: " + args[1]);
+		server->AddErrorPage(code, args[2]);
+	}
+	// Directivas específicas de servidor
+	else if (directive == "listen")
+	{
+		if (args.size() < 2)
+			throw std::invalid_argument("listen requires port");
+		unsigned int port;
+		// El último elemento es el puerto
+		if (!utils::stringToUnsignedInt(args[args.size()-1], port))
+			throw std::invalid_argument("invalid port: " + args[args.size()-1]);
+		if (args.size() == 2) // solo puerto
+			server->SetListen(port);
+		else if (args.size() == 3) // IP y puerto
+			server->SetListen(args[1], port);
+		else
+			throw std::invalid_argument("listen takes 1 or 2 arguments");
+	}
+	else if (directive == "server_name")
+	{
+		for (size_t i = 1; i < args.size(); ++i)
+			server->AddServerName(args[i]);
+	}
+	else if (directive == "cgi_handler")
+	{
+		if (args.size() != 3)
+			throw std::invalid_argument("cgi_handler requires extension and interpreter");
+		server->SetCgiHandler(args[1], args[2]);
+	}
+	else if (directive == "location")
+		std::cerr << "Error: 'location' debe ser un bloque (location ... { ... })" << std::endl;
+	// La adición de ubicaciones se hace desde el parser al encontrar un bloque location,
+	// no mediante esta función.
+}
+
+void Configuration::ProcessLocationDirective(const std::vector<std::string>& args,
+                                             LocationContext* location)
+{
+    const std::string& directive = args[0];
+
+    // Directivas comunes
+    if (directive == "root")
+	{
+        if (args.size() < 2)
+			throw std::invalid_argument("root requires a path");
+        location->SetRoot(args[1]);
+    }
+    else if (directive == "index")
+	{
+        for (size_t i = 1; i < args.size(); ++i)
+            location->AddIndex(args[i]);
+    }
+    else if (directive == "autoindex")
+	{
+        if (args.size() < 2)
+			throw std::invalid_argument("autoindex requires on/off");
+        location->SetAutoIndex(args[1] == "on");
+    }
+    else if (directive == "client_max_body_size")
+	{
+        if (args.size() < 2)
+			throw std::invalid_argument("client_max_body_size requires a size");
+        location->SetClientMaxBodySize(args[1]);
+    }
+    else if (directive == "error_page")
+	{
+        if (args.size() < 3)
+			throw std::invalid_argument("error_page requires code and page");
+        unsigned int code;
+        if (!utils::stringToUnsignedInt(args[1], code))
+            throw std::invalid_argument("invalid error code: " + args[1]);
+        location->AddErrorPage(code, args[2]);
+    }
+    // Directivas específicas de ubicación
+    else if (directive == "limit_except")
+	{
+        std::vector<Http::Method> methods;
+        for (size_t i = 1; i < args.size(); ++i)
+		{
+            Http::Method m = GetMethod(args[i]);
+            methods.push_back(m);
+        }
+        location->SetLimitExcept(methods);
+    }
+    else if (directive == "upload_store")
+	{
+        if (args.size() < 2)
+			throw std::invalid_argument("upload_store requires a path");
+        location->SetUploadStore(args[1]);
+    }
+    else if (directive == "return")
+	{
+        if (args.size() < 2)
+			throw std::invalid_argument("return requires a code");
+        unsigned int code;
+        if (!utils::stringToUnsignedInt(args[1], code))
+            throw std::invalid_argument("invalid return code: " + args[1]);
+        const std::string* urlPtr = NULL;
+        std::string urlStr;
+        if (args.size() >= 3)
+		{
+            urlStr = args[2];
+            urlPtr = &urlStr; // urlStr vive durante la llamada, seguro
+        }
+        location->SetReturn(code, urlPtr);
+    }
+    else if (directive == "cgi_handler")
+	{
+        if (args.size() != 3)
+			throw std::invalid_argument("cgi_handler requires extension and interpreter");
+        location->SetCgiHandler(args[1], args[2]);
+    }
 }
 
 bool Configuration::Parse()
@@ -187,6 +325,11 @@ bool Configuration::Parse()
 				/* error: directiva vacía */
 				throw std::exception();
 			}
+			if (args[0] == "server" || args[0] == "location")
+			{
+				std::cerr << "Error: '" << args[0] << "' debe ser un bloque, no una directiva terminada en ';'" << std::endl;
+				return false;
+			}
 			else
 			{
 				// Procesar según el contexto actual
@@ -204,32 +347,46 @@ bool Configuration::Parse()
 			std::string ctx = args.back(); // último argumento antes de '{'
 			if (ctx == "server")
 			{
+				if (stateStack.back() != GLOBAL)
+				{
+					std::cerr << "Error: bloque 'server' solo permitido en contexto global" << std::endl;
+					return false;
+				}
 				// Añadir nuevo ServerContext al vector global
 				ServerContext newServer;
 				// Inicializar punteros a NULL (el constructor ya lo hace)
-				global->server.push_back(newServer);
-				currentServer = &(global->server.back());
+				global->AddServer(newServer);
+				currentServer = global->GetLastServer();
 				currentLocation = NULL;
 				stateStack.push_back(SERVER);
 			}
 			else if (ctx == "location")
 			{
+				if (stateStack.back() != SERVER)
+				{
+					std::cerr << "Error: bloque 'location' solo permitido dentro de un servidor" << std::endl;
+					return false;
+				}
 				// El path es el penúltimo argumento (args.size() >= 2)
-				if (args.size() < 2) { /* error */ return false; }
+				if (args.size() < 2)
+				{
+					/* error */ return false;
+				}
 				std::string path = args[args.size()-2]; // "location /path {"
 				// Añadir LocationContext al servidor actual
-				if (!currentServer) { /* error */ return false; }
-				if (currentServer->location == NULL)
-					currentServer->location = new std::vector<LocationContext>();
+				if (!currentServer)
+				{ 
+					/* error */ return false;
+				}
 				LocationContext newLoc;
 				// newLoc.path = path; (necesitas un campo path)
-				currentServer->location->push_back(newLoc);
-				currentLocation = &(currentServer->location->back());
+				currentServer->AddLocation(newLoc);
+				currentLocation = currentServer->GetLastLocation();
 				stateStack.push_back(LOCATION);
 			}
 			else
 			{
-				// bloque desconocido
+				std::cerr << "Error: bloque desconocido '" << ctx << "'" << std::endl;
 				return false;
 			}
 			args.clear();
@@ -253,15 +410,31 @@ bool Configuration::Parse()
 			}
 		}
 	}
+	if (stateStack.size() != 1)
+	{
+		std::cerr << "Error: llaves desbalanceadas (faltan cierres de bloque)" << std::endl;
+		return false;
+	}
 	return true;
 }
 
 Configuration::Configuration(std::string confPath) : _confPath(confPath)
 {
 
-	if (!FileExistAndRedeable(confPath))
+	if (!FileExistAndReadable(confPath))
 		throw std::exception();
 	std::string context;
 	if (!ReadAndPreprocess(confPath, context))
 		throw std::exception();
+}
+
+Http::Method Configuration::GetMethod(const std::string& arg)
+{
+	if (arg == "GET")
+		return Http::GET;
+	if (arg == "POST")
+		return Http::POST;
+	if (arg == "DELETE")
+		return Http::DELETE;
+	throw std::invalid_argument("Method couldn't be found");
 }

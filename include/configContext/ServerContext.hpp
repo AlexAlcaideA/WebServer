@@ -24,7 +24,7 @@ class ServerContext : public ConfigContext
 		};
 		std::set<ServerListen>* _listen;					// Multiple,	No duplicates,	Optional,		Default: INADDR_ANY:http
 		std::set<std::string>* _serverName;					// Multiple,	No Duplicates,	Optional,		Default: ""
-		std::set<LocationContext>* _location;				// Multiple,	No duplicates,	Optional,		Default: /
+		std::map<std::string, LocationContext>* _location;	// Multiple,	No duplicates,	Optional,		Default: /
 		std::map<std::string, std::string>* _cgiHandlers;	// Multiple,	No duplicates,	Optional,		Default: -
 	public:
 		ServerContext();
@@ -35,5 +35,9 @@ class ServerContext : public ConfigContext
 		void SetListen(const unsigned int& port);
 		void SetListen(const std::string& ip, const unsigned int& port);
 		void AddServerName(const std::string& name);
-		void SetCgiHandler(const std::string& ext, const std::string& interp) override;
+		void AddLocation(const LocationContext& location);
+		void SetCgiHandler(const std::string& ext, const std::string& interp);
+		std::map<std::string, LocationContext>* GetLocations() const;
+		LocationContext* GetLocation(size_t index);
+		LocationContext* GetLastLocation();
 };

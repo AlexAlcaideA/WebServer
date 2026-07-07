@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <stdexcept>
+#include "../utils/HttpMethod.hpp"
 
 class ConfigContext
 {
@@ -29,5 +30,5 @@ class ConfigContext
 		virtual void SetAutoIndex(bool on);
 		virtual void SetClientMaxBodySize(const std::string& size);
 		virtual void AddErrorPage(unsigned int code, const std::string& page);
-		virtual void SetCgiHandler(const std::string& ext, const std::string& interp) {}
+		virtual void SetCgiHandler(const std::string&, const std::string& ) {}
 };

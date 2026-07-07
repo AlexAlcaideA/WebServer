@@ -6,77 +6,19 @@
 #include <unistd.h>
 #include <fstream>
 #include <iostream>
-#include "Parser.hpp"
+#include "configContext/GlobalContext.hpp"
+#include "configContext/ServerContext.hpp"
+#include "configContext/LocationContext.hpp"
+#include "utils/HttpMethod.hpp"
 
 class Configuration
 {
-	public:
-		enum Method
-		{
-			GET,
-			POST,
-			DELETE
-		};
 	private:
 		enum State 
 		{
 			GLOBAL,
 			SERVER,
 			LOCATION
-		};
-		struct ReturnVal
-		{
-			unsigned int code;
-			std::string* url; // Is optional, can be NULL
-		};
-		struct ServerListen
-		{
-			std::string serverIp;
-			unsigned int port;
-		};
-		struct CgiHandler
-		{
-			std::string extension;
-			std::string interpreter;
-		};
-		struct LocationContext
-		{
-			std::string* root;									// No multiple,	No duplicates,	Optional,		Default: "html"
-			bool* autoIndex;									// No Multiple,	No duplicates,	Optional,		Default: off
-			std::string* clientMaxBodySize;						// No multiple,	No duplicates,	Optional,		Default: 1m(mega)
-			std::vector<std::string>* index;					// Multiple,	Duplicates,		Optional,		Default: index.html
-			std::map<unsigned int, std::string>* errorPage;		// Multiple,	Duplicates,		Optional,		Default: none
-			CgiHandler* cgiHandler;								// Multiple,	No duplicates,	Optional,		Default: -
-			std::vector<Method>* limitExcept;					// No multiple,	No duplicates,	Optional,		Default: GET POST
-			std::string* uploadStore;							// No multiple,	No duplicates,	Optional,		Default: -
-			ReturnVal* returnVal;								// No multiple,	No duplicates,	Optional,		Default: -
-			LocationContext();
-			~LocationContext();
-		};
-		struct ServerContext
-		{
-			ServerListen* listen;								// Multiple,	No duplicates,	Optional,		Default: INADDR_ANY:http
-			std::string* serverName;							// Multiple,	No Duplicates,	Optional,		Default: ""
-			std::string* root;									// No multiple,	No duplicates,	Optional,		Default: "html"
-			std::vector<std::string>* index;					// Multiple,	Duplicates,		Optional,		Default: index.html
-			std::map<unsigned int, std::string>* errorPage;		// Multiple,	Duplicates,		Optional,		Default: none
-			std::vector<LocationContext>* location;				// Multiple,	No duplicates,	Optional,		Default: /
-			bool* autoIndex;									// No Multiple,	No duplicates,	Optional,		Default: off
-			std::string* clientMaxBodySize;						// No multiple,	No duplicates,	Optional,		Default: 1m(mega)
-			CgiHandler* cgiHandler;								// Multiple,	No duplicates,	Optional,		Default: -
-			ServerContext();
-			~ServerContext();
-		};
-		struct GlobalContext
-		{
-			std::vector<ServerContext> server;					// Multiple,	Duplicates,		No optional,	Default: -
-			std::string* root;									// No multiple,	No duplicates,	Optional,		Default: "html"
-			std::vector<std::string>* index;					// Multiple,	Duplicates,		Optional,		Default: index.html
-			std::map<unsigned int, std::string>* errorPage;		// Multiple,	Duplicates,		Optional,		Default: none
-			bool* autoIndex;									// No Multiple,	No duplicates,	Optional,		Default: off
-			std::string* clientMaxBodySize;						// No multiple,	No duplicates,	Optional,		Default: 1m(mega)
-			GlobalContext();
-			~GlobalContext();
 		};
 		struct Token 
 		{
@@ -95,7 +37,11 @@ class Configuration
 		Token GetNextToken(const std::string& src, size_t& pos);
 		void ProcessDirective(const std::vector<std::string>& args, State ctx,
 			GlobalContext* global, ServerContext* server, LocationContext* location);
+		void ProcessGlobalDirective(const std::vector<std::string>& args, GlobalContext* global);
+		void ProcessServerDirective(const std::vector<std::string>& args, ServerContext* server);
+		void ProcessLocationDirective(const std::vector<std::string>& args, LocationContext* location);
 		bool Parse();
+		Http::Method GetMethod(const std::string& arg);
 
 	public:
 		Configuration();

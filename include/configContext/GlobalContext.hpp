@@ -13,4 +13,7 @@ class GlobalContext : public ConfigContext
 		GlobalContext& operator=(const GlobalContext& other);
 		~GlobalContext();
 		void AddServer(const ServerContext& server);
+		std::vector<ServerContext>* GetServers() const;
+		ServerContext* GetServer(size_t index);
+		ServerContext* GetLastServer();
 };
