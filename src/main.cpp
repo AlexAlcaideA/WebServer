@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include "../include/Configuration.hpp"
 
 int main(int argc, char **argv)
 {
@@ -8,10 +9,8 @@ int main(int argc, char **argv)
 		std::cerr << "Need a configuration file." << std::endl;
 		return 1;
 	}
-	else 
-	{
-		std::string confRoot = argv[1];
-	}
-	(void)argv;
+	std::string confRoot = argv[1];
+	Configuration conf(confRoot);
+	conf << std::cout;
 	return 0;
 }

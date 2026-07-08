@@ -5,6 +5,11 @@ LocationContext::LocationContext()
 	_cgiHandlers(NULL), _limitExcept(NULL), _uploadStore(NULL), _returnVal(NULL), _path("/")
 {}
 
+LocationContext::LocationContext(const std::string& path)
+	: ConfigContext(), 
+	_cgiHandlers(NULL), _limitExcept(NULL), _uploadStore(NULL), _returnVal(NULL), _path(path)
+{}
+
 LocationContext::LocationContext(const LocationContext& other)
 	: ConfigContext(other),
 	_cgiHandlers(other._cgiHandlers ? new std::map<std::string, std::string>(*other._cgiHandlers) : NULL),
@@ -59,6 +64,66 @@ bool LocationContext::operator<(const LocationContext& other) const
 bool LocationContext::operator==(const LocationContext& other) const
 {
 	return _path == other._path;
+}
+
+std::ostream& LocationContext::operator<<(std::ostream& os) const
+{
+	ConfigContext::operator<<(os);
+
+	os << "Path: " << _path << "\n";
+
+	os << "CGI handlers:\n";
+	if (_cgiHandlers && !_cgiHandlers->empty())
+	{
+		std::map<std::string, std::string>::const_iterator it;
+		for (it = _cgiHandlers->begin(); it != _cgiHandlers->end(); ++it)
+			os << it->first << " -> " << it->second << "\n";
+	}
+	else
+		os << "Empty\n";
+
+	os << "Limit except: ";
+	if (_limitExcept)
+	{
+		for (size_t i = 0; i < _limitExcept->size(); ++i)
+		{
+			switch ((*_limitExcept)[i])
+			{
+				case GET:
+					os << "GET ";
+					break;
+				case POST:
+					os << "POST ";
+					break;
+				case DELETE:
+					os << "DELETE ";
+					break;
+			}
+		}
+	}
+	else
+		os << "GET POST (default)";
+	os << "\n";
+
+	os << "Upload store: ";
+	if (_uploadStore)
+		os << *_uploadStore;
+	else
+		os << "Empty";
+	os << "\n";
+
+	os << "Return: ";
+	if (_returnVal)
+	{
+		os << _returnVal->code;
+		if (_returnVal->url)
+			os << " " << *(_returnVal->url);
+	}
+	else
+		os << "Empty";
+	os << "\n";
+
+	return os;
 }
 
 void LocationContext::SetCgiHandler(const std::string& ext, const std::string& interp)

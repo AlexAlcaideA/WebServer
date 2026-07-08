@@ -6,10 +6,9 @@ GlobalContext::GlobalContext()
 {}
 
 GlobalContext::GlobalContext(const GlobalContext& other)
-	: ConfigContext(other)
-{
-	*this = other;
-}
+	: ConfigContext(other),
+	_server(other._server ? new std::vector<ServerContext>(*other._server) : NULL)
+{}
 
 GlobalContext& GlobalContext::operator=(const GlobalContext& other)
 {
@@ -25,6 +24,22 @@ GlobalContext& GlobalContext::operator=(const GlobalContext& other)
 GlobalContext::~GlobalContext()
 {
 	delete _server;
+}
+
+std::ostream& GlobalContext::operator<<(std::ostream& os) const
+{
+	os << "Global:\n";
+	ConfigContext::operator<<(os);
+	if (_server)
+	{
+		os << "Servers: \n";
+		for (size_t i = 0; i < _server->size(); i++)
+		{
+			os << "- ";
+			(*_server)[i] << os;
+		}	
+	}
+	return os;
 }
 
 void GlobalContext::AddServer(const ServerContext& server)

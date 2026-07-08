@@ -6,10 +6,12 @@ ServerContext::ServerContext()
 {}
 
 ServerContext::ServerContext(const ServerContext& other)
-	: ConfigContext(other)
-{
-	*this = other;
-}
+	: ConfigContext(other),
+	_listen(other._listen ? new std::set<ServerListen>(*other._listen) : NULL),
+	_serverName(other._serverName ? new std::set<std::string>(*other._serverName) : NULL),
+	_location(other._location ? new std::map<std::string, LocationContext>(*other._location) : NULL),
+	_cgiHandlers(other._cgiHandlers ? new std::map<std::string, std::string>(*other._cgiHandlers) : NULL)
+{}
 
 ServerContext& ServerContext::operator=(const ServerContext& other)
 {
@@ -54,6 +56,59 @@ bool ServerContext::operator==(const ServerContext& other) const
 	else if (_serverName != other._serverName)
 		return false;
 	return true;
+}
+
+std::ostream& ServerContext::operator<<(std::ostream& os) const
+{
+	ConfigContext::operator<<(os);
+
+	os << "Listen: ";
+	if (_listen && !_listen->empty())
+	{
+		std::set<ServerListen>::const_iterator it;
+		for (it = _listen->begin(); it != _listen->end(); ++it)
+			os << it->serverIp << ":" << it->port << " ";
+	}
+	else
+		os << "INADDR_ANY:http (default)";
+	os << "\n";
+
+	os << "Server names: ";
+	if (_serverName && !_serverName->empty())
+	{
+		std::set<std::string>::const_iterator it;
+		for (it = _serverName->begin(); it != _serverName->end(); ++it)
+			os << *it << " ";
+	}
+	else
+		os << "(empty)";
+	os << "\n";
+
+	os << "Locations:\n";
+	if (_location && !_location->empty())
+	{
+		std::map<std::string, LocationContext>::const_iterator it;
+		for (it = _location->begin(); it != _location->end(); ++it)
+		{
+			os << "Location " << it->first << ":\n";
+			it->second << os;
+			os << "\n";
+		}
+	}
+	else
+		os << "Empty\n";
+
+	os << "CGI handlers:\n";
+	if (_cgiHandlers && !_cgiHandlers->empty())
+	{
+		std::map<std::string, std::string>::const_iterator it;
+		for (it = _cgiHandlers->begin(); it != _cgiHandlers->end(); ++it)
+			os << it->first << " -> " << it->second << "\n";
+	}
+	else
+		os << "Empty\n";
+
+	return os;
 }
 
 void ServerContext::SetListen(const unsigned int& port)

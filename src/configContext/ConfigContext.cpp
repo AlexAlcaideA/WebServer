@@ -5,9 +5,12 @@ ConfigContext::ConfigContext()
 {}
 
 ConfigContext::ConfigContext(const ConfigContext& other)
-{
-	*this = other;
-}
+	: _root(other._root ? new std::string(*other._root) : NULL),
+	_index(other._index ? new std::vector<std::string>(*other._index) : NULL),
+	_autoIndex(other._autoIndex ? new bool(*other._autoIndex) : NULL),
+	_clientMaxBodySize(other._clientMaxBodySize ? new std::string(*other._clientMaxBodySize) : NULL),
+	_errorPage(other._errorPage ? new std::map<unsigned int, std::string>(*other._errorPage) : NULL)
+{}
 
 ConfigContext& ConfigContext::operator=(const ConfigContext& other)
 {
@@ -34,6 +37,36 @@ ConfigContext::~ConfigContext()
 	delete _autoIndex;
 	delete _clientMaxBodySize;
 	delete _errorPage;
+}
+
+std::ostream& ConfigContext::operator<<(std::ostream& os) const
+{
+	os << "Root: ";
+	os << (!_root ? "Empty" : *_root) + "\n";
+	os << "Index list:\n";
+	if (_index)
+	{
+		for (size_t i = 0; i < _index->size(); i++)
+			os << (*_index)[i] << "\n";
+	}
+	else
+		os << "Empty\n";
+	if (_autoIndex)
+		os << (*_autoIndex ? "true" : "false");
+	else
+		os << "Empty";
+	os << "Client max body: " << (!_clientMaxBodySize ? "Empty" : *_clientMaxBodySize) << "\n";
+	os << "Error page:\n";
+	if (_errorPage)
+	{
+		for (std::map<unsigned int, std::string>::const_iterator it = _errorPage->begin();
+			it != _errorPage->end(); ++it)
+			os << it->first << " -> " << it->second << "\n";
+	}
+	else
+		os << "Empty error page\n";
+	
+	return os;
 }
 
 void ConfigContext::SetRoot(const std::string& path)

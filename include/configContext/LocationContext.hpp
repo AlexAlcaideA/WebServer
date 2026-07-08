@@ -18,11 +18,13 @@ class LocationContext : public ConfigContext
 
 	public:
 		LocationContext();
+		LocationContext(const std::string& path);
 		LocationContext(const LocationContext& other);
 		LocationContext& operator=(const LocationContext& other);
 		~LocationContext();
 		bool operator<(const LocationContext& other) const;
     	bool operator==(const LocationContext& other) const;
+		std::ostream& operator<<(std::ostream& os) const;
 
 		void SetCgiHandler(const std::string& ext, const std::string& interp);
 		void SetLimitExcept(const std::vector<Http::Method>& methods);

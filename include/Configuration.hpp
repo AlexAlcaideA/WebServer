@@ -49,4 +49,5 @@ class Configuration
 		Configuration(const Configuration& other);
 		Configuration& operator=(const Configuration& other);
 		~Configuration();
+		std::ostream& operator<<(std::ostream& os) const;
 };

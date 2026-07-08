@@ -32,6 +32,7 @@ class ServerContext : public ConfigContext
 		ServerContext& operator=(const ServerContext& other);
 		~ServerContext();
 		bool operator==(const ServerContext& other) const;
+		std::ostream& operator<<(std::ostream& os) const;
 		void SetListen(const unsigned int& port);
 		void SetListen(const std::string& ip, const unsigned int& port);
 		void AddServerName(const std::string& name);

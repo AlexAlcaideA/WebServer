@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include <stdexcept>
+#include <fstream>
 #include "../utils/HttpMethod.hpp"
 
 class ConfigContext
@@ -25,6 +26,7 @@ class ConfigContext
 		ConfigContext(const ConfigContext& other);
 		ConfigContext& operator=(const ConfigContext& other);
 		virtual ~ConfigContext();
+		virtual std::ostream& operator<<(std::ostream& os) const;
 		virtual void SetRoot(const std::string& path);
 		virtual void AddIndex(const std::string& file);
 		virtual void SetAutoIndex(bool on);

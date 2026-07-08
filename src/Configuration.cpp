@@ -344,49 +344,49 @@ bool Configuration::Parse()
 			{
 				/* error */ return false;
 			}
-			std::string ctx = args.back(); // último argumento antes de '{'
-			if (ctx == "server")
+			std::string blockType = args[0];   // primer token: "server" o "location"
+
+			if (blockType == "server")
 			{
 				if (stateStack.back() != GLOBAL)
 				{
 					std::cerr << "Error: bloque 'server' solo permitido en contexto global" << std::endl;
 					return false;
 				}
-				// Añadir nuevo ServerContext al vector global
 				ServerContext newServer;
-				// Inicializar punteros a NULL (el constructor ya lo hace)
 				global->AddServer(newServer);
 				currentServer = global->GetLastServer();
 				currentLocation = NULL;
 				stateStack.push_back(SERVER);
 			}
-			else if (ctx == "location")
+			else if (blockType == "location")
 			{
 				if (stateStack.back() != SERVER)
 				{
 					std::cerr << "Error: bloque 'location' solo permitido dentro de un servidor" << std::endl;
 					return false;
 				}
-				// El path es el penúltimo argumento (args.size() >= 2)
 				if (args.size() < 2)
 				{
-					/* error */ return false;
+					/* error: falta el path */
+					return false;
 				}
-				std::string path = args[args.size()-2]; // "location /path {"
-				// Añadir LocationContext al servidor actual
+
 				if (!currentServer)
-				{ 
-					/* error */ return false;
+				{
+					/* error */
+					return false;
 				}
-				LocationContext newLoc;
-				// newLoc.path = path; (necesitas un campo path)
+
+				LocationContext newLoc(args[1]);
+
 				currentServer->AddLocation(newLoc);
 				currentLocation = currentServer->GetLastLocation();
 				stateStack.push_back(LOCATION);
 			}
 			else
 			{
-				std::cerr << "Error: bloque desconocido '" << ctx << "'" << std::endl;
+				std::cerr << "Error: bloque desconocido '" << blockType << "'" << std::endl;
 				return false;
 			}
 			args.clear();
@@ -418,16 +418,6 @@ bool Configuration::Parse()
 	return true;
 }
 
-Configuration::Configuration(std::string confPath) : _confPath(confPath)
-{
-
-	if (!FileExistAndReadable(confPath))
-		throw std::exception();
-	std::string context;
-	if (!ReadAndPreprocess(confPath, context))
-		throw std::exception();
-}
-
 Http::Method Configuration::GetMethod(const std::string& arg)
 {
 	if (arg == "GET")
@@ -437,4 +427,36 @@ Http::Method Configuration::GetMethod(const std::string& arg)
 	if (arg == "DELETE")
 		return Http::DELETE;
 	throw std::invalid_argument("Method couldn't be found");
+}
+
+Configuration::Configuration(std::string confPath) : _confPath(confPath)
+{
+
+	if (!FileExistAndReadable(confPath))
+		throw std::exception();
+	Parse();
+}
+
+Configuration::Configuration(const Configuration& other)
+{
+	*this = other;
+}
+
+Configuration& Configuration::operator=(const Configuration& other)
+{
+	if (this != &other)
+	{
+		_globalBlock = other._globalBlock;
+		_confPath = other._confPath;
+	}
+	return *this;
+}
+
+Configuration::~Configuration()
+{}
+
+std::ostream& Configuration::operator<<(std::ostream& os) const
+{
+	_globalBlock << os;
+	return os;
 }
