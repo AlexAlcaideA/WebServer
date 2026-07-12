@@ -31,5 +31,11 @@ class LocationContext : public ConfigContext
 		void SetUploadStore(const std::string& path);
 		void SetReturn(unsigned int code, const std::string* url);
 		void SetPath(const std::string& path);
+
 		const std::string& GetPath() const;
+		const std::string* GetCgiHandler(const std::string& extension) const;
+		const std::vector<Http::Method>* GetLimitExcepts() const;
+		const Http::Method* GetLimitExcept(size_t index) const;
+		const std::string* GetUploadStore() const;
+		const ReturnVal* GetReturnVal() const;
 };

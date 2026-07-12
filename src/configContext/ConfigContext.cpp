@@ -47,24 +47,26 @@ std::ostream& ConfigContext::operator<<(std::ostream& os) const
 	if (_index)
 	{
 		for (size_t i = 0; i < _index->size(); i++)
-			os << (*_index)[i] << "\n";
+			os << "-" << (*_index)[i] << "\n";
 	}
 	else
-		os << "Empty\n";
+		os << "-Empty\n";
+	os << "AutoIndex: " ;
 	if (_autoIndex)
 		os << (*_autoIndex ? "true" : "false");
 	else
 		os << "Empty";
+	os << "\n";
 	os << "Client max body: " << (!_clientMaxBodySize ? "Empty" : *_clientMaxBodySize) << "\n";
 	os << "Error page:\n";
 	if (_errorPage)
 	{
 		for (std::map<unsigned int, std::string>::const_iterator it = _errorPage->begin();
 			it != _errorPage->end(); ++it)
-			os << it->first << " -> " << it->second << "\n";
+			os << "-" << it->first << " -> " << it->second << "\n";
 	}
 	else
-		os << "Empty error page\n";
+		os << "-Empty error page\n";
 	
 	return os;
 }
@@ -105,4 +107,46 @@ void ConfigContext::AddErrorPage(unsigned int code, const std::string& page)
 	if (!_errorPage)
 		_errorPage = new std::map<unsigned int, std::string>();
 	(*_errorPage)[code] = page;
+}
+
+const std::string* ConfigContext::GetRoot()
+{
+	return _root;
+}
+
+const std::vector<std::string>* ConfigContext::GetIndexes()
+{
+	return _index;
+}
+
+const std::string* ConfigContext::GetIndex(size_t index)
+{
+	if (!_index || index >= _index->size())
+		return NULL;
+	return &((*_index)[index]);
+}
+	
+const bool* ConfigContext::GetAutoIndex()
+{
+	return _autoIndex;
+}
+
+const std::string* ConfigContext::GetClientMaxBodySize()
+{
+	return _clientMaxBodySize;
+}
+
+const std::map<unsigned int, std::string>* ConfigContext::GetErrorPages()
+{
+	return _errorPage;
+}
+
+const std::string* ConfigContext::GetErrorPage(unsigned int error)
+{
+	return &((*_errorPage)[error]);
+}
+
+const std::string* ConfigContext::GetCgiHandler(const std::string& extension) const
+{
+	return NULL;
 }

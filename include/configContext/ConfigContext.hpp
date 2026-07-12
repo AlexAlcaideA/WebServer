@@ -4,18 +4,12 @@
 #include <vector>
 #include <map>
 #include <stdexcept>
-#include <fstream>
+#include <ostream>
 #include "../utils/HttpMethod.hpp"
 
 class ConfigContext
 {
 	protected:
-		enum Method
-		{
-			GET,
-			POST,
-			DELETE
-		};
 		std::string* _root;									// No multiple,	No duplicates,	Optional,		Default: "html"
 		std::vector<std::string>* _index;					// Multiple,	Duplicates,		Optional,		Default: index.html
 		bool* _autoIndex;									// No Multiple,	No duplicates,	Optional,		Default: off
@@ -33,4 +27,13 @@ class ConfigContext
 		virtual void SetClientMaxBodySize(const std::string& size);
 		virtual void AddErrorPage(unsigned int code, const std::string& page);
 		virtual void SetCgiHandler(const std::string&, const std::string& ) {}
+
+		virtual const std::string* GetRoot();
+		virtual const std::vector<std::string>* GetIndexes();
+		virtual const std::string* GetIndex(size_t index);
+		virtual const bool* GetAutoIndex();
+		virtual const std::string* GetClientMaxBodySize();
+		virtual const std::map<unsigned int, std::string>* GetErrorPages();
+		virtual const std::string* GetErrorPage(unsigned int error);
+		virtual const std::string* GetCgiHandler(const std::string& extension) const;
 };

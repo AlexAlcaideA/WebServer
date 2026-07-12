@@ -38,7 +38,14 @@ class ServerContext : public ConfigContext
 		void AddServerName(const std::string& name);
 		void AddLocation(const LocationContext& location);
 		void SetCgiHandler(const std::string& ext, const std::string& interp);
-		std::map<std::string, LocationContext>* GetLocations() const;
-		LocationContext* GetLocation(size_t index);
-		LocationContext* GetLastLocation();
+
+		const std::set<ServerListen>* GetListens() const;
+		const ServerListen* GetListen(size_t index) const;
+		const std::set<std::string>* GetServerNames() const;
+		const std::string* GetServerName(size_t index) const;
+		const std::map<std::string, LocationContext>* GetLocations() const;
+		size_t GetLocationsSize() const;
+		const LocationContext* GetLocation(size_t index) const;
+		const LocationContext* GetLastLocation() const;
+		const std::string* GetCgiHandler(const std::string& extension) const;
 };

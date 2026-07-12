@@ -35,7 +35,7 @@ std::ostream& GlobalContext::operator<<(std::ostream& os) const
 		os << "Servers: \n";
 		for (size_t i = 0; i < _server->size(); i++)
 		{
-			os << "- ";
+			os << "-";
 			(*_server)[i] << os;
 		}	
 	}
@@ -55,19 +55,19 @@ void GlobalContext::AddServer(const ServerContext& server)
 	_server->push_back(server);
 }
 
-std::vector<ServerContext>* GlobalContext::GetServers() const
+const std::vector<ServerContext>* GlobalContext::GetServers() const
 {
 	return _server;
 }
 
-ServerContext* GlobalContext::GetServer(size_t index)
+const ServerContext* GlobalContext::GetServer(size_t index) const
 {
 	if (!_server || index >= _server->size())
 		return NULL;
 	return &((*_server)[index]);
 }
 
-ServerContext* GlobalContext::GetLastServer()
+const ServerContext* GlobalContext::GetLastServer() const
 {
 	if (!_server || 1 > _server->size())
 		return NULL;

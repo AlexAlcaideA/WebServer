@@ -70,32 +70,32 @@ std::ostream& LocationContext::operator<<(std::ostream& os) const
 {
 	ConfigContext::operator<<(os);
 
-	os << "Path: " << _path << "\n";
+	os << "--Path: " << _path << "\n";
 
-	os << "CGI handlers:\n";
+	os << "--CGI handlers:\n";
 	if (_cgiHandlers && !_cgiHandlers->empty())
 	{
 		std::map<std::string, std::string>::const_iterator it;
 		for (it = _cgiHandlers->begin(); it != _cgiHandlers->end(); ++it)
-			os << it->first << " -> " << it->second << "\n";
+			os << "----" << it->first << " -> " << it->second << "\n";
 	}
 	else
-		os << "Empty\n";
+		os << "---Empty\n";
 
-	os << "Limit except: ";
+	os << "--Limit except: ";
 	if (_limitExcept)
 	{
 		for (size_t i = 0; i < _limitExcept->size(); ++i)
 		{
 			switch ((*_limitExcept)[i])
 			{
-				case GET:
+				case Http::GET:
 					os << "GET ";
 					break;
-				case POST:
+				case Http::POST:
 					os << "POST ";
 					break;
-				case DELETE:
+				case Http::DELETE:
 					os << "DELETE ";
 					break;
 			}
@@ -105,14 +105,14 @@ std::ostream& LocationContext::operator<<(std::ostream& os) const
 		os << "GET POST (default)";
 	os << "\n";
 
-	os << "Upload store: ";
+	os << "--Upload store: ";
 	if (_uploadStore)
 		os << *_uploadStore;
 	else
 		os << "Empty";
 	os << "\n";
 
-	os << "Return: ";
+	os << "--Return: ";
 	if (_returnVal)
 	{
 		os << _returnVal->code;
@@ -180,4 +180,34 @@ void LocationContext::SetPath(const std::string& path)
 const std::string& LocationContext::GetPath() const
 {
 	return _path;
+}
+
+const std::string* LocationContext::GetCgiHandler(const std::string& extension) const
+{
+	if (!_cgiHandlers)
+		return NULL;
+	std::map<std::string, std::string>::const_iterator it = _cgiHandlers->find(extension);
+	return (it != _cgiHandlers->end()) ? &it->second : NULL;
+}
+
+const std::vector<Http::Method>* LocationContext::GetLimitExcepts() const
+{
+	return _limitExcept;
+}
+
+const Http::Method* LocationContext::GetLimitExcept(size_t index) const
+{
+	if (!_limitExcept || index >= _limitExcept->size())
+		return NULL;
+	return &(*_limitExcept)[index];
+}
+
+const std::string* LocationContext::GetUploadStore() const
+{
+	return _uploadStore;
+}
+
+const LocationContext::ReturnVal* LocationContext::GetReturnVal() const
+{
+	return _returnVal;
 }

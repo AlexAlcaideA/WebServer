@@ -14,7 +14,8 @@ class GlobalContext : public ConfigContext
 		~GlobalContext();
 		std::ostream& operator<<(std::ostream& os) const;
 		void AddServer(const ServerContext& server);
-		std::vector<ServerContext>* GetServers() const;
-		ServerContext* GetServer(size_t index);
-		ServerContext* GetLastServer();
+
+		const std::vector<ServerContext>* GetServers() const;
+		const ServerContext* GetServer(size_t index) const;
+		const ServerContext* GetLastServer() const;
 };

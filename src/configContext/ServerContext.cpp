@@ -62,7 +62,7 @@ std::ostream& ServerContext::operator<<(std::ostream& os) const
 {
 	ConfigContext::operator<<(os);
 
-	os << "Listen: ";
+	os << "-Listen: ";
 	if (_listen && !_listen->empty())
 	{
 		std::set<ServerListen>::const_iterator it;
@@ -73,7 +73,7 @@ std::ostream& ServerContext::operator<<(std::ostream& os) const
 		os << "INADDR_ANY:http (default)";
 	os << "\n";
 
-	os << "Server names: ";
+	os << "-Server names: ";
 	if (_serverName && !_serverName->empty())
 	{
 		std::set<std::string>::const_iterator it;
@@ -84,13 +84,13 @@ std::ostream& ServerContext::operator<<(std::ostream& os) const
 		os << "(empty)";
 	os << "\n";
 
-	os << "Locations:\n";
+	os << "-Locations:\n";
 	if (_location && !_location->empty())
 	{
 		std::map<std::string, LocationContext>::const_iterator it;
 		for (it = _location->begin(); it != _location->end(); ++it)
 		{
-			os << "Location " << it->first << ":\n";
+			os << "--Location " << it->first << ":\n";
 			it->second << os;
 			os << "\n";
 		}
@@ -98,7 +98,7 @@ std::ostream& ServerContext::operator<<(std::ostream& os) const
 	else
 		os << "Empty\n";
 
-	os << "CGI handlers:\n";
+	os << "-CGI handlers:\n";
 	if (_cgiHandlers && !_cgiHandlers->empty())
 	{
 		std::map<std::string, std::string>::const_iterator it;
@@ -106,7 +106,7 @@ std::ostream& ServerContext::operator<<(std::ostream& os) const
 			os << it->first << " -> " << it->second << "\n";
 	}
 	else
-		os << "Empty\n";
+		os << "--Empty\n";
 
 	return os;
 }
@@ -162,26 +162,69 @@ void ServerContext::SetCgiHandler(const std::string& ext, const std::string& int
 		throw std::invalid_argument("cgi_handler duplicated for extension: " + ext);
 }
 
-std::map<std::string, LocationContext>* ServerContext::GetLocations() const
+const std::set<ServerContext::ServerListen>* ServerContext::GetListens() const
+{
+	return _listen;
+}
+
+const ServerContext::ServerListen* ServerContext::GetListen(size_t index) const
+{
+	if (!_listen || index >= _listen->size())
+		return NULL;
+	std::set<ServerContext::ServerListen>::const_iterator  it = _listen->begin();
+	for (size_t i = 0; i < index; ++i)
+		++it;
+	return &(*it);
+}
+
+const std::set<std::string>* ServerContext::GetServerNames() const
+{
+	return _serverName;
+}
+
+const std::string* ServerContext::GetServerName(size_t index) const
+{
+	if (!_serverName || index >= _serverName->size())
+		return NULL;
+	std::set<std::string>::const_iterator  it = _serverName->begin();
+	for (size_t i = 0; i < index; ++i)
+		++it;
+	return &(*it);
+}
+
+const std::map<std::string, LocationContext>* ServerContext::GetLocations() const
 {
 	return _location;
 }
 
-LocationContext* ServerContext::GetLocation(size_t index)
+size_t ServerContext::GetLocationsSize() const
+{
+	return _location->size();
+}
+
+const LocationContext* ServerContext::GetLocation(size_t index) const
 {
 	if (!_location || index >= _location->size())
 		return NULL;
-	std::map<std::string, LocationContext>::iterator it = _location->begin();
+	std::map<std::string, LocationContext>::const_iterator it = _location->begin();
 	for (size_t i = 0; i < index; ++i)
 		++it;
 	return &(it->second);
 }
 
-LocationContext* ServerContext::GetLastLocation()
+const LocationContext* ServerContext::GetLastLocation() const
 {
 	if (!_location || _location->empty())
 		return NULL;
-	std::map<std::string, LocationContext>::iterator it = _location->end();
+	std::map<std::string, LocationContext>::const_iterator it = _location->end();
 	--it;
 	return &(it->second);
+}
+
+const std::string* ServerContext::GetCgiHandler(const std::string& extension) const
+{
+	if (!_cgiHandlers)
+		return NULL;
+	std::map<std::string, std::string>::const_iterator it = _cgiHandlers->find(extension);
+	return (it != _cgiHandlers->end()) ? &it->second : NULL;
 }
