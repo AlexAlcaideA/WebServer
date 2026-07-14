@@ -27,7 +27,7 @@ int main(int ac, char** av)
     std::vector<ScanSocket> sockets;
     std::vector<pollfd> pollfds;
 
-    for (int puerto = 1; puerto <= 1024; puerto++) { //itera por puertos
+    for (int puerto = 1; puerto <= 65535; puerto++) { //itera por puertos
 
         int sock = socket(AF_INET, SOCK_STREAM, 0);//crea el socket
         if (sock < 0)
