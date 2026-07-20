@@ -1,3 +1,4 @@
+
 # WebServer
 
 ## Resources
@@ -17,6 +18,31 @@
 - kqueue
 - epoll -> <sys/epoll.h>
 
+HTTP requests:
+GET
+POST
+DELETE
+PUT
+OPTIONS
+HEAD
+
+HTTP returns:
+200 OK: Success consigui enviar el archivo
+201 Created: Se ha creado un nuevo recurso
+204 No Content: Success pero archivo vacio
+301 Moved Permanently: Redireccion eterna
+302 Found: Redireccion temporal
+304 Not Modified: No ha habido cambios y el caching server puede obtener la web
+400 Bad Request: Mala request o mal formulada
+401 Unauthorized: Requiere autenticado
+403 Forbidden: Autenticado pero no permitido
+404 Not Found: Archivo no encontrado
+405 Method Not Allowed: Metodo http no permitido
+418 I'm a teapot: Servidor se niega a hacer cafe porque es una tetera
+500 Internal Server Error: El servidor ha petado o ha encontrado un error
+503 Service Unavailable: El servicio esta temporalmente no disponible
+
+Puertos:
 Los puertos son 16 bit unsigned int
 puerto 21:FTP (transferencia de archivos)
 puerto 22:ssh (conexion remota)

@@ -5,9 +5,9 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #define VERSION 1.1
-#define STATUSCODE 200
-#define STATUSMSG OK
+#define STATUSCODE 200 OK
 #define CONTENT "Hello, World!";
+#define PORT 8080
 int	main(void)
 {
 	int tcpSocket4 = socket(AF_INET, SOCK_STREAM, 0);
@@ -17,12 +17,12 @@ int	main(void)
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8080);
+    address.sin_port = htons(PORT);
 
     bind(server_fd, (sockaddr*)&address, sizeof(address));
     listen(server_fd, 1);
 
-    std::cout << "Listening on http://localhost:8080\n";
+    std::cout << "Listening on http://localhost:PORT\n";
 
     while (true) {
         int client = accept(server_fd, nullptr, nullptr);

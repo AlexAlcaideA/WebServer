@@ -1,0 +1,4 @@
+HTTP/1.1 418 I'm a teapot
+Content-Length: 14
+
+I'm a teapot
