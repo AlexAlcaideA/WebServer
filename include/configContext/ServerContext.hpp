@@ -6,7 +6,7 @@
 
 class ServerContext : public ConfigContext
 {
-	private:
+	public:
 		struct ServerListen
 		{
 			std::string serverIp;
@@ -22,6 +22,7 @@ class ServerContext : public ConfigContext
 				return serverIp == other.serverIp && port == other.port;
 			}
 		};
+	private:
 		std::set<ServerListen>* _listen;					// Multiple,	No duplicates,	Optional,		Default: INADDR_ANY:http
 		std::set<std::string>* _serverName;					// Multiple,	No Duplicates,	Optional,		Default: ""
 		std::map<std::string, LocationContext>* _location;	// Multiple,	No duplicates,	Optional,		Default: /
@@ -32,7 +33,6 @@ class ServerContext : public ConfigContext
 		ServerContext& operator=(const ServerContext& other);
 		~ServerContext();
 		bool operator==(const ServerContext& other) const;
-		std::ostream& operator<<(std::ostream& os) const;
 		void SetListen(const unsigned int& port);
 		void SetListen(const std::string& ip, const unsigned int& port);
 		void AddServerName(const std::string& name);
@@ -46,6 +46,10 @@ class ServerContext : public ConfigContext
 		const std::map<std::string, LocationContext>* GetLocations() const;
 		size_t GetLocationsSize() const;
 		const LocationContext* GetLocation(size_t index) const;
+		LocationContext* GetLastLocation();
 		const LocationContext* GetLastLocation() const;
+		const std::map<std::string, std::string>* GetCgiHandlers() const;
 		const std::string* GetCgiHandler(const std::string& extension) const;
 };
+
+std::ostream& operator<<(std::ostream& os, const ServerContext& other);

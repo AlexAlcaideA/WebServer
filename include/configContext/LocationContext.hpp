@@ -24,7 +24,6 @@ class LocationContext : public ConfigContext
 		~LocationContext();
 		bool operator<(const LocationContext& other) const;
     	bool operator==(const LocationContext& other) const;
-		std::ostream& operator<<(std::ostream& os) const;
 
 		void SetCgiHandler(const std::string& ext, const std::string& interp);
 		void SetLimitExcept(const std::vector<Http::Method>& methods);
@@ -33,9 +32,12 @@ class LocationContext : public ConfigContext
 		void SetPath(const std::string& path);
 
 		const std::string& GetPath() const;
+		const std::map<std::string, std::string>* GetCgiHandlers() const;
 		const std::string* GetCgiHandler(const std::string& extension) const;
 		const std::vector<Http::Method>* GetLimitExcepts() const;
 		const Http::Method* GetLimitExcept(size_t index) const;
 		const std::string* GetUploadStore() const;
 		const ReturnVal* GetReturnVal() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const LocationContext& other);

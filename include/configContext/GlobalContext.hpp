@@ -12,10 +12,12 @@ class GlobalContext : public ConfigContext
 		GlobalContext(const GlobalContext& other);
 		GlobalContext& operator=(const GlobalContext& other);
 		~GlobalContext();
-		std::ostream& operator<<(std::ostream& os) const;
 		void AddServer(const ServerContext& server);
 
 		const std::vector<ServerContext>* GetServers() const;
 		const ServerContext* GetServer(size_t index) const;
+		ServerContext* GetLastServer();
 		const ServerContext* GetLastServer() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const GlobalContext& other);

@@ -70,3 +70,6 @@ Testing/
 
 # Visual Studio Code
 .vscode/
+
+# Exec
+webserv

@@ -20,7 +20,6 @@ class ConfigContext
 		ConfigContext(const ConfigContext& other);
 		ConfigContext& operator=(const ConfigContext& other);
 		virtual ~ConfigContext();
-		virtual std::ostream& operator<<(std::ostream& os) const;
 		virtual void SetRoot(const std::string& path);
 		virtual void AddIndex(const std::string& file);
 		virtual void SetAutoIndex(bool on);
@@ -28,12 +27,16 @@ class ConfigContext
 		virtual void AddErrorPage(unsigned int code, const std::string& page);
 		virtual void SetCgiHandler(const std::string&, const std::string& ) {}
 
-		virtual const std::string* GetRoot();
-		virtual const std::vector<std::string>* GetIndexes();
-		virtual const std::string* GetIndex(size_t index);
-		virtual const bool* GetAutoIndex();
-		virtual const std::string* GetClientMaxBodySize();
-		virtual const std::map<unsigned int, std::string>* GetErrorPages();
-		virtual const std::string* GetErrorPage(unsigned int error);
+		virtual void print(std::ostream& os) const;
+
+		virtual const std::string* GetRoot() const;
+		virtual const std::vector<std::string>* GetIndexes() const;
+		virtual const std::string* GetIndex(size_t index) const;
+		virtual const bool* GetAutoIndex() const;
+		virtual const std::string* GetClientMaxBodySize() const;
+		virtual const std::map<unsigned int, std::string>* GetErrorPages() const;
+		virtual const std::string* GetErrorPage(unsigned int error) const;
 		virtual const std::string* GetCgiHandler(const std::string& extension) const;
 };
+
+std::ostream& operator<<(std::ostream& os, const ConfigContext& other);

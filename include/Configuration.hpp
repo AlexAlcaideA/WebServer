@@ -14,13 +14,13 @@
 class Configuration
 {
 	private:
-		enum State 
+		enum State
 		{
 			GLOBAL,
 			SERVER,
 			LOCATION
 		};
-		struct Token 
+		struct Token
 		{
 			enum Type { WORD, OPEN_BRACE, CLOSE_BRACE, SEMICOLON, END };
 			Type type;
@@ -49,5 +49,8 @@ class Configuration
 		Configuration(const Configuration& other);
 		Configuration& operator=(const Configuration& other);
 		~Configuration();
-		std::ostream& operator<<(std::ostream& os) const;
+
+		const GlobalContext& GetConf() const;
 };
+
+std::ostream& operator<<(std::ostream& os, const Configuration& other);

@@ -58,59 +58,6 @@ bool ServerContext::operator==(const ServerContext& other) const
 	return true;
 }
 
-std::ostream& ServerContext::operator<<(std::ostream& os) const
-{
-	ConfigContext::operator<<(os);
-
-	os << "-Listen: ";
-	if (_listen && !_listen->empty())
-	{
-		std::set<ServerListen>::const_iterator it;
-		for (it = _listen->begin(); it != _listen->end(); ++it)
-			os << it->serverIp << ":" << it->port << " ";
-	}
-	else
-		os << "INADDR_ANY:http (default)";
-	os << "\n";
-
-	os << "-Server names: ";
-	if (_serverName && !_serverName->empty())
-	{
-		std::set<std::string>::const_iterator it;
-		for (it = _serverName->begin(); it != _serverName->end(); ++it)
-			os << *it << " ";
-	}
-	else
-		os << "(empty)";
-	os << "\n";
-
-	os << "-Locations:\n";
-	if (_location && !_location->empty())
-	{
-		std::map<std::string, LocationContext>::const_iterator it;
-		for (it = _location->begin(); it != _location->end(); ++it)
-		{
-			os << "--Location " << it->first << ":\n";
-			it->second << os;
-			os << "\n";
-		}
-	}
-	else
-		os << "Empty\n";
-
-	os << "-CGI handlers:\n";
-	if (_cgiHandlers && !_cgiHandlers->empty())
-	{
-		std::map<std::string, std::string>::const_iterator it;
-		for (it = _cgiHandlers->begin(); it != _cgiHandlers->end(); ++it)
-			os << it->first << " -> " << it->second << "\n";
-	}
-	else
-		os << "--Empty\n";
-
-	return os;
-}
-
 void ServerContext::SetListen(const unsigned int& port)
 {
 	SetListen("0.0.0.0", port);
@@ -212,6 +159,15 @@ const LocationContext* ServerContext::GetLocation(size_t index) const
 	return &(it->second);
 }
 
+LocationContext* ServerContext::GetLastLocation()
+{
+	if (!_location || _location->empty())
+		return NULL;
+	std::map<std::string, LocationContext>::iterator it = _location->end();
+	--it;
+	return &(it->second);
+}
+
 const LocationContext* ServerContext::GetLastLocation() const
 {
 	if (!_location || _location->empty())
@@ -221,10 +177,68 @@ const LocationContext* ServerContext::GetLastLocation() const
 	return &(it->second);
 }
 
+const std::map<std::string, std::string>* ServerContext::GetCgiHandlers() const
+{
+	return _cgiHandlers;
+}
+
 const std::string* ServerContext::GetCgiHandler(const std::string& extension) const
 {
 	if (!_cgiHandlers)
 		return NULL;
 	std::map<std::string, std::string>::const_iterator it = _cgiHandlers->find(extension);
 	return (it != _cgiHandlers->end()) ? &it->second : NULL;
+}
+
+std::ostream& operator<<(std::ostream& os, const ServerContext& other)
+{
+	other.print(os);
+
+	os << "-Listen: ";
+	if (other.GetListens() && !other.GetListens()->empty())
+	{
+		std::set<ServerContext::ServerListen>::const_iterator it;
+		for (it = other.GetListens()->begin(); it != other.GetListens()->end(); ++it)
+			os << it->serverIp << ":" << it->port << " ";
+	}
+	else
+		os << "INADDR_ANY:http (default)";
+	os << "\n";
+
+	os << "-Server names: ";
+	if (other.GetServerNames() && !other.GetServerNames()->empty())
+	{
+		std::set<std::string>::const_iterator it;
+		for (it = other.GetServerNames()->begin(); it != other.GetServerNames()->end(); ++it)
+			os << *it << " ";
+	}
+	else
+		os << "(empty)";
+	os << "\n";
+
+	os << "-Locations:\n";
+	if (other.GetLocations() && !other.GetLocations()->empty())
+	{
+		std::map<std::string, LocationContext>::const_iterator it;
+		for (it = other.GetLocations()->begin(); it != other.GetLocations()->end(); ++it)
+		{
+			os << "--Location " << it->first << ":\n";
+			os << it->second;
+			os << "\n";
+		}
+	}
+	else
+		os << "Empty\n";
+
+	os << "-CGI handlers:\n";
+	if (other.GetCgiHandlers() && !other.GetCgiHandlers()->empty())
+	{
+		std::map<std::string, std::string>::const_iterator it;
+		for (it = other.GetCgiHandlers()->begin(); it != other.GetCgiHandlers()->end(); ++it)
+			os << it->first << " -> " << it->second << "\n";
+	}
+	else
+		os << "--Empty\n";
+
+	return os;
 }

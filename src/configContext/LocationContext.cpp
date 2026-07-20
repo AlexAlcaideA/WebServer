@@ -1,12 +1,12 @@
 #include "../../include/configContext/LocationContext.hpp"
 
 LocationContext::LocationContext()
-	: ConfigContext(), 
+	: ConfigContext(),
 	_cgiHandlers(NULL), _limitExcept(NULL), _uploadStore(NULL), _returnVal(NULL), _path("/")
 {}
 
 LocationContext::LocationContext(const std::string& path)
-	: ConfigContext(), 
+	: ConfigContext(),
 	_cgiHandlers(NULL), _limitExcept(NULL), _uploadStore(NULL), _returnVal(NULL), _path(path)
 {}
 
@@ -66,66 +66,6 @@ bool LocationContext::operator==(const LocationContext& other) const
 	return _path == other._path;
 }
 
-std::ostream& LocationContext::operator<<(std::ostream& os) const
-{
-	ConfigContext::operator<<(os);
-
-	os << "--Path: " << _path << "\n";
-
-	os << "--CGI handlers:\n";
-	if (_cgiHandlers && !_cgiHandlers->empty())
-	{
-		std::map<std::string, std::string>::const_iterator it;
-		for (it = _cgiHandlers->begin(); it != _cgiHandlers->end(); ++it)
-			os << "----" << it->first << " -> " << it->second << "\n";
-	}
-	else
-		os << "---Empty\n";
-
-	os << "--Limit except: ";
-	if (_limitExcept)
-	{
-		for (size_t i = 0; i < _limitExcept->size(); ++i)
-		{
-			switch ((*_limitExcept)[i])
-			{
-				case Http::GET:
-					os << "GET ";
-					break;
-				case Http::POST:
-					os << "POST ";
-					break;
-				case Http::DELETE:
-					os << "DELETE ";
-					break;
-			}
-		}
-	}
-	else
-		os << "GET POST (default)";
-	os << "\n";
-
-	os << "--Upload store: ";
-	if (_uploadStore)
-		os << *_uploadStore;
-	else
-		os << "Empty";
-	os << "\n";
-
-	os << "--Return: ";
-	if (_returnVal)
-	{
-		os << _returnVal->code;
-		if (_returnVal->url)
-			os << " " << *(_returnVal->url);
-	}
-	else
-		os << "Empty";
-	os << "\n";
-
-	return os;
-}
-
 void LocationContext::SetCgiHandler(const std::string& ext, const std::string& interp)
 {
 	if (!_cgiHandlers)
@@ -182,6 +122,11 @@ const std::string& LocationContext::GetPath() const
 	return _path;
 }
 
+const std::map<std::string, std::string>* LocationContext::GetCgiHandlers() const
+{
+	return _cgiHandlers;
+}
+
 const std::string* LocationContext::GetCgiHandler(const std::string& extension) const
 {
 	if (!_cgiHandlers)
@@ -210,4 +155,64 @@ const std::string* LocationContext::GetUploadStore() const
 const LocationContext::ReturnVal* LocationContext::GetReturnVal() const
 {
 	return _returnVal;
+}
+
+std::ostream& operator<<(std::ostream& os, const LocationContext& other)
+{
+	other.print(os);
+
+	os << "--Path: " << other.GetPath() << "\n";
+
+	os << "--CGI handlers:\n";
+	if (other.GetCgiHandlers() && !other.GetCgiHandlers()->empty())
+	{
+		std::map<std::string, std::string>::const_iterator it;
+		for (it = other.GetCgiHandlers()->begin(); it != other.GetCgiHandlers()->end(); ++it)
+			os << "----" << it->first << " -> " << it->second << "\n";
+	}
+	else
+		os << "---Empty\n";
+
+	os << "--Limit except: ";
+	if (other.GetLimitExcepts())
+	{
+		for (size_t i = 0; i < other.GetLimitExcepts()->size(); ++i)
+		{
+			switch (*other.GetLimitExcept(i))
+			{
+				case Http::GET:
+					os << "GET ";
+					break;
+				case Http::POST:
+					os << "POST ";
+					break;
+				case Http::DELETE:
+					os << "DELETE ";
+					break;
+			}
+		}
+	}
+	else
+		os << "GET POST (default)";
+	os << "\n";
+
+	os << "--Upload store: ";
+	if (other.GetUploadStore())
+		os << *other.GetUploadStore();
+	else
+		os << "Empty";
+	os << "\n";
+
+	os << "--Return: ";
+	if (other.GetReturnVal())
+	{
+		os << other.GetReturnVal()->code;
+		if (other.GetReturnVal()->url)
+			os << " " << *(other.GetReturnVal()->url);
+	}
+	else
+		os << "Empty";
+	os << "\n";
+
+	return os;
 }

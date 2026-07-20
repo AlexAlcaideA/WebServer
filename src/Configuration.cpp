@@ -56,7 +56,7 @@ Configuration::Token Configuration::GetNextToken(const std::string& src, size_t&
 	{
 		++pos;
 		return Configuration::Token(Token::CLOSE_BRACE, "}");
-	}	
+	}
 	if (c == ';')
 	{
 		++pos;
@@ -401,7 +401,7 @@ bool Configuration::Parse()
 			{
 				currentLocation = NULL;
 				// currentServer sigue siendo el mismo
-			} 
+			}
 			else if
 			(stateStack.back() == GLOBAL)
 			{
@@ -455,8 +455,13 @@ Configuration& Configuration::operator=(const Configuration& other)
 Configuration::~Configuration()
 {}
 
-std::ostream& Configuration::operator<<(std::ostream& os) const
+const GlobalContext& Configuration::GetConf() const
 {
-	_globalBlock << os;
+	return _globalBlock;
+}
+
+std::ostream& operator<<(std::ostream& os, const Configuration& other)
+{
+	os << other.GetConf();
 	return os;
 }

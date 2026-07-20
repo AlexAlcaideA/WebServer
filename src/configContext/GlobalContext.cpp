@@ -26,22 +26,6 @@ GlobalContext::~GlobalContext()
 	delete _server;
 }
 
-std::ostream& GlobalContext::operator<<(std::ostream& os) const
-{
-	os << "Global:\n";
-	ConfigContext::operator<<(os);
-	if (_server)
-	{
-		os << "Servers: \n";
-		for (size_t i = 0; i < _server->size(); i++)
-		{
-			os << "-";
-			(*_server)[i] << os;
-		}	
-	}
-	return os;
-}
-
 void GlobalContext::AddServer(const ServerContext& server)
 {
 	if (!_server)
@@ -67,9 +51,32 @@ const ServerContext* GlobalContext::GetServer(size_t index) const
 	return &((*_server)[index]);
 }
 
-const ServerContext* GlobalContext::GetLastServer() const
+ServerContext* GlobalContext::GetLastServer()
 {
-	if (!_server || 1 > _server->size())
+	if (!_server || _server->empty())
 		return NULL;
 	return &(_server->back());
+}
+
+const ServerContext* GlobalContext::GetLastServer() const
+{
+	if (!_server || _server->empty())
+		return NULL;
+	return &(_server->back());
+}
+
+std::ostream& operator<<(std::ostream& os, const GlobalContext& other)
+{
+	os << "Global:\n";
+	other.print(os);
+	if (other.GetServers())
+	{
+		os << "Servers: \n";
+		for (size_t i = 0; i < other.GetServers()->size(); i++)
+		{
+			os << "-";
+			os << *(other.GetServer(i));
+		}
+	}
+	return os;
 }
