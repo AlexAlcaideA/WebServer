@@ -19,6 +19,13 @@ Usamos ipv4 y poll
 - [Requests](https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/apex_classes_restful_http_httprequest.htm)
 - [CGI tests](https://www6.uniovi.es/~antonio/ncsa_httpd/cgi/examples.html)
 
+##para hacer
+- [] -Clases de lo necesario
+- [] -Metodo post
+- [] -Mejorar los tres
+- [] -Mergear con lo de alex
+- [] -Utilizar el sistema poll
+
 - HTTP requests:
 **metodos obligatorios**
 GET

@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-bool cgiexec(int type, char **av, char **env, int infd, int outfd, char *file)
+/*bool cgiexec(int type, char **av, char **env, int infd, int outfd, char *file)
 {
 pid_t pid = fork();
 
@@ -19,7 +19,7 @@ if (pid == 0)
 
     char *argv[] = {
         (char *)"/usr/bin/python3",
-        (char *)"script.py",
+        (char *)file,
         NULL
     };
 
@@ -35,7 +35,7 @@ if (pid == 0)
     perror("execve");
     exit(1);
 }
-}
+}*/
 int main()
 {
     // 1. Crear socket
