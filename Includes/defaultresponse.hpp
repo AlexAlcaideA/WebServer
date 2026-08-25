@@ -1,10 +1,7 @@
 #ifndef DEFAULTRESPONSE_HPP
 # define DEFAULTRESPONSE_HPP
 #include <string>
-
-class DefaultResponse {
-public:
-	enum class Type {
+enum Type {
 		SUCCESS = 200,
 		CREATED = 201,
 		NO_CONTENT = 204,
@@ -19,84 +16,88 @@ public:
 		TEAPOT = 418,
 		INTERNAL_ERROR = 500,
 		SERVICE_DOWN = 503
-	};
+};
+class DefaultResponse {
+public:
+	
+	explicit DefaultResponse(){}
 
-	explicit DefaultResponse(Type type) : type_(type) {}
-
-	std::string getString() const {
+	std::string getString(Type type_) const {
 		switch (type_) {
-			case Type::200:
+			case SUCCESS:
 				return ("HTTP/1.1 200 OK\r\n"
 				"Content-Type: text/plain\r\n"
 				"Content-Length: 5\r\n"
 				"\r\n"
 				"Hello");
-			case Type::201:
+			case CREATED:
 				return ("HTTP/1.1 201 Created\r\n"
 				"Location: /users/123\r\n"
 				"Content-Length: 0\r\n");
-			case Type::204:
-				return ("HTTP/1.1 204 No Content");
-			case Type::301:
+			case NO_CONTENT:
+				return ("HTTP/1.1 204 No Content\r\n");
+			case MOVED_PERMANENTLY:
 				return ("HTTP/1.1 301 Moved Permanently\r\n"
 				"Location: https://www.youtube.com/watch?v=dQw4w9WgXcQ\r\n"
 				"Content-Length: 0\r\n");
-			case Type::302:
+			case FOUND:
 				return ("HTTP/1.1 302 Found\r\n"
 				"Location: /login\r\n"
 				"Content-Length: 0\r\n");
-			case Type::304:
+			case NOT_MODIFIED:
 				return ("HTTP/1.1 304 Not Modified\r\n"
 				"ETag: \"Non modified\"\r\n");
-			case Type::400:
+			case BAD_REQUEST:
 				return ("HTTP/1.1 400 Bad Request\r\n"
 				"Content-Type: text/plain\r\n"
 				"Content-Length: 11\r\n"
 				"\r\n"
 				"Bad Request\r\n");
-			case Type::401:
+			case UNAUTHORIZED:
 				return ("HTTP/1.1 401 Unauthorized\r\n"
 				"WWW-Authenticate: Basic realm=\"Example\"\r\n"
 				"Content-Length: 0\r\n");
-			case Type::403:
+			case FORBIDDEN:
 				return ("HTTP/1.1 403 Forbidden\r\n"
 				"Content-Type: text/plain\r\n"
-				"Content-Length: 9\r\n"
+				"Content-Length: 11\r\n"
 				"\r\n"
 				"Forbidden\r\n");
-			case Type::404:
+			case NOT_FOUND:
 				return ("HTTP/1.1 404 Not Found\r\n"
 				"Content-Length: 13\r\n"
 				"Content-Type: text/plain\r\n"
 				"Connection: close\r\n"
 				"\r\n"
-				"404 Not Found");
-			case Type::405:
+				"404 Not Found\r\n");
+			case METHOD_NOT_ALLOWED:
 				return ("HTTP/1.1 405 Method Not Allowed\r\n"
 				"Content-Length: 18\r\n"
 				"Content-Type: text/plain\r\n"
 				"Connection: close\r\n"
 				"\r\n"
 				"Method Not Allowed");
-			case Type::418:
+			case TEAPOT:
 				return ("HTTP/1.1 418 I'm a teapot\r\n"
 				"Content-Length: 14\r\n"
 				"\r\n"
 				"I'm a teapot\r\n");
-			case Type::500:
+			case INTERNAL_ERROR:
 				return ("HTTP/1.1 500 Internal Server Error\r\n"
 				"Content-Type: text/plain\r\n"
 				"Content-Length: 21\r\n"
 				"\r\n"
 				"Internal Server Error\r\n");
-			case Type::503:
+			case SERVICE_DOWN:
 				return ("HTTP/1.1 503 Service Unavailable\r\n"
 				"Retry-After: 120\r\n"
 				"Content-Length: 0\r\n");
 		}
-		return {}; // fallback
+		return ("HTTP/1.1 500 Internal Server Error\r\n"
+				"Content-Type: text/plain\r\n"
+				"Content-Length: 21\r\n"
+				"\r\n"
+				"Internal Server Error\r\n");
 	}
-private:
-	Type type_;
 };
 #endif

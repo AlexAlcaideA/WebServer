@@ -5,6 +5,8 @@ Usamos ipv4 y poll
 
 ## Resources
 
+- [CURL](https://curl.se/docs/httpscripting.html)
+- [HTTPstatus](http.cat)
 - [SNMP]()
 - [NTP]()
 - [Socket](https://www.linuxhowtos.org/C_C++/socket.htm)
