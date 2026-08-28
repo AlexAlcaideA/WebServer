@@ -28,6 +28,9 @@ Usamos ipv4 y poll
 - [] -Mejorar los tres
 - [] -Mergear con lo de alex
 - [] -Utilizar el sistema poll
+- [] -Utilizar el config para el server
+- [] -Cambiar error pages a utilizar map
+
 
 ## Info
 - HTTP requests:
