@@ -41,6 +41,7 @@ class Configuration
 		void ProcessServerDirective(const std::vector<std::string>& args, ServerContext* server);
 		void ProcessLocationDirective(const std::vector<std::string>& args, LocationContext* location);
 		bool Parse();
+		void FillWithDefaultVals();
 		Http::Method GetMethod(const std::string& arg);
 
 	public:

@@ -1,4 +1,6 @@
 #include "../../include/configContext/ConfigContext.hpp"
+#include <iterator>
+#include "../../include/utils/StringUtils.hpp"
 
 void ConfigContext::print(std::ostream& os) const
 {
@@ -18,7 +20,7 @@ void ConfigContext::print(std::ostream& os) const
 	else
 		os << "Empty";
 	os << "\n";
-	os << "Client max body: " << (!_clientMaxBodySize ? "Empty" : *_clientMaxBodySize) << "\n";
+	os << "Client max body: " << (!_clientMaxBodySize ? "Empty" : utils::unsignedLongLongToString(*_clientMaxBodySize)) << " bytes\n";
 	os << "Error page:\n";
 	if (_errorPage)
 	{
@@ -38,7 +40,7 @@ ConfigContext::ConfigContext(const ConfigContext& other)
 	: _root(other._root ? new std::string(*other._root) : NULL),
 	_index(other._index ? new std::vector<std::string>(*other._index) : NULL),
 	_autoIndex(other._autoIndex ? new bool(*other._autoIndex) : NULL),
-	_clientMaxBodySize(other._clientMaxBodySize ? new std::string(*other._clientMaxBodySize) : NULL),
+	_clientMaxBodySize(other._clientMaxBodySize ? new unsigned long long(*other._clientMaxBodySize) : NULL),
 	_errorPage(other._errorPage ? new std::map<unsigned int, std::string>(*other._errorPage) : NULL)
 {}
 
@@ -53,7 +55,7 @@ ConfigContext& ConfigContext::operator=(const ConfigContext& other)
 		delete _autoIndex;
 		other._autoIndex == NULL ? _autoIndex = NULL : _autoIndex = new bool(*other._autoIndex);
 		delete _clientMaxBodySize;
-		other._clientMaxBodySize == NULL ? _clientMaxBodySize = NULL : _clientMaxBodySize = new std::string(*other._clientMaxBodySize);
+		other._clientMaxBodySize == NULL ? _clientMaxBodySize = NULL : _clientMaxBodySize = new unsigned long long(*other._clientMaxBodySize);
 		delete _errorPage;
 		other._errorPage == NULL ? _errorPage = NULL : _errorPage = new std::map<unsigned int, std::string>(*other._errorPage);
 	}
@@ -92,12 +94,12 @@ void ConfigContext::SetAutoIndex(bool on)
 		throw std::invalid_argument("autoIndex directive duplicated");
 }
 
-void ConfigContext::SetClientMaxBodySize(const std::string& size)
+void ConfigContext::SetClientMaxBodySize(const unsigned long long& size)
 {
 	if (!_clientMaxBodySize)
-		_clientMaxBodySize = new std::string(size);
+		_clientMaxBodySize = new unsigned long long(size);
 	else
-		throw std::invalid_argument("clientMaxBodySize directive duplicated: " + size);
+		throw std::invalid_argument("clientMaxBodySize directive duplicated: " + utils::unsignedLongLongToString(size));
 }
 
 void ConfigContext::AddErrorPage(unsigned int code, const std::string& page)
@@ -129,7 +131,7 @@ const bool* ConfigContext::GetAutoIndex() const
 	return _autoIndex;
 }
 
-const std::string* ConfigContext::GetClientMaxBodySize() const
+const unsigned long long* ConfigContext::GetClientMaxBodySize() const
 {
 	return _clientMaxBodySize;
 }
@@ -144,10 +146,27 @@ const std::string* ConfigContext::GetErrorPage(unsigned int error) const
 	return &((*_errorPage)[error]);
 }
 
+const std::pair<const unsigned int, std::string>* ConfigContext::GetErrorPageIndex(unsigned int index) const
+{
+	if (!_errorPage || index >= _errorPage->size())
+		return NULL;
+	std::map<unsigned int, std::string>::const_iterator it = _errorPage->begin();
+	std::advance(it, index);
+	return &(*it);
+}
+
 const std::string* ConfigContext::GetCgiHandler(const std::string& extension) const
 {
-	(void)extension;
-	return NULL;
+	return &((*_cgiHandler)[extension]);
+}
+
+const std::pair<const std::string, std::string>* ConfigContext::GetCgiHandlerIndex(unsigned int index) const
+{
+	if (!_cgiHandler || index >= _cgiHandler->size())
+		return NULL;
+	std::map<std::string, std::string>::const_iterator it = _cgiHandler->begin();
+	std::advance(it, index);
+	return &(*it);
 }
 
 std::ostream& operator<<(std::ostream& os, const ConfigContext& other)

@@ -46,6 +46,7 @@ class ServerContext : public ConfigContext
 		const std::map<std::string, LocationContext>* GetLocations() const;
 		size_t GetLocationsSize() const;
 		const LocationContext* GetLocation(size_t index) const;
+		LocationContext& GetLocation(size_t index);
 		LocationContext* GetLastLocation();
 		const LocationContext* GetLastLocation() const;
 		const std::map<std::string, std::string>* GetCgiHandlers() const;

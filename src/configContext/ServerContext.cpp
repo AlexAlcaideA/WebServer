@@ -1,4 +1,5 @@
 #include "../../include/configContext/ServerContext.hpp"
+#include <iterator>
 
 ServerContext::ServerContext()
 	: ConfigContext(),
@@ -157,6 +158,13 @@ const LocationContext* ServerContext::GetLocation(size_t index) const
 	for (size_t i = 0; i < index; ++i)
 		++it;
 	return &(it->second);
+}
+
+LocationContext& ServerContext::GetLocation(size_t index)
+{
+	std::map<std::string, LocationContext>::iterator it = _location->begin();
+	std::advance(it, index);
+	return (it->second);
 }
 
 LocationContext* ServerContext::GetLastLocation()

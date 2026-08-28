@@ -51,6 +51,11 @@ const ServerContext* GlobalContext::GetServer(size_t index) const
 	return &((*_server)[index]);
 }
 
+ServerContext& GlobalContext::GetServer(size_t index)
+{
+	return (*_server)[index];
+}
+
 ServerContext* GlobalContext::GetLastServer()
 {
 	if (!_server || _server->empty())
