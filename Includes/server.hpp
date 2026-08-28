@@ -1,5 +1,7 @@
 #ifndef SERVER_HPP
 # define SERVER_HPP
+#include <sys/socket.h>
+#include <netinet/in.h>
 class server
 {
 	private:
@@ -17,6 +19,8 @@ class server
 	server(void);
 // Constructor copia
 	server(const server& otro);
+//Getters
+	int get_server_fd(void)const;
 // Sobrecarga operador asignacion
 	server &operator= (const server& otro);
 };

@@ -13,6 +13,7 @@ enum Type {
 		FORBIDDEN = 403,
 		NOT_FOUND = 404,
 		METHOD_NOT_ALLOWED = 405,
+		LENGHT_REQUIRED = 411,
 		TEAPOT = 418,
 		INTERNAL_ERROR = 500,
 		SERVICE_DOWN = 503
@@ -77,6 +78,11 @@ public:
 				"Connection: close\r\n"
 				"\r\n"
 				"Method Not Allowed");
+			case METHOD_NOT_ALLOWED:
+				return ("HTTP/1.1 411 Length Required\r\n"
+          			"Content-Length: 0\r\n"
+				"Connection: close\r\n"
+				"\r\n");
 			case TEAPOT:
 				return ("HTTP/1.1 418 I'm a teapot\r\n"
 				"Content-Length: 14\r\n"

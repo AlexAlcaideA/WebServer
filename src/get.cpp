@@ -1,12 +1,7 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <cstring>
-
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include "defaultresponse.hpp"
+#include "server.hpp"
+#include "httprequest.hpp"
+#include "includes.h"
 
 /*bool cgiexec(int type, char **av, char **env, int infd, int outfd, char *file)
 {
@@ -38,42 +33,7 @@ if (pid == 0)
 }*/
 int main()
 {
-    // 1. Crear socket
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == -1)
-    {
-        perror("socket");
-        return 1;
-    }
-
-    // 2. Configurar dirección
-    sockaddr_in address;
-    std::memset(&address, 0, sizeof(address));
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8080);
-
-    // 3. Bind
-    if (bind(server_fd,
-             (sockaddr *)&address,
-             sizeof(address)) == -1)
-    {
-        perror("bind");
-        close(server_fd);
-        return 1;
-    }
-
-    // 4. Listen
-    if (listen(server_fd, 10) == -1)
-    {
-        perror("listen");
-        close(server_fd);
-        return 1;
-    }
-
-    std::cout << "Server listening on http://localhost:8080\n";
-
+	server Server(8081);
     while (true)
     {
         // 5. Aceptar cliente

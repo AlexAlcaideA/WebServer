@@ -1,28 +1,31 @@
 #ifndef HTTPREQUEST_HPP
 # define HTTPREQUEST_HPP
-class (httpreq)
+#include "includes.h"
+class httpreq
 {
 	private:
-		agent
-		host
-		method
-		version
-		accept
-		path
+		std::string agent;
+		std::string host;
+		std::string method;
+		std::string version;
+		std::string accept;
+		std::string path;
+		std::string lenght;
 
 	protected:
 
 	public:
-
 // Destructor default
-	~(httpreq)(void);
-// Constructor default
-	(httpreq)(void);
+	~httpreq(void){};
 // Constructor parametrizado
-	(httpreq)();
-// Constructor copia
-	(httpreq)(const (httpreq)& otro);
-// Sobrecarga operador asignacion
-	(httpreq) &operator= (const (httpreq)& otro);
+	httpreq(std::string text);
+// Getters
+	const std::string getAgent(void) const;
+	const std::string getHost(void) const;
+	const std::string getMethod(void) const;
+	const std::string getVersion(void) const;
+	const std::string getAccept(void) const;
+	const std::string getPath(void) const;
+	const std::string getLenght(void) const;
 };
 #endif

@@ -1,45 +1,11 @@
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <cstring>
-
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
+#include "defaultresponse.hpp"
+#include "server.hpp"
+#include "httprequest.hpp"
+#include "includes.h"
 
 int main()
 {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd == -1)
-    {
-        perror("socket");
-        return 1;
-    }
-
-    sockaddr_in address;
-    std::memset(&address, 0, sizeof(address));
-
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8080);
-
-    if (bind(server_fd, (sockaddr*)&address, sizeof(address)) == -1)
-    {
-        perror("bind");
-        close(server_fd);
-        return 1;
-    }
-
-    if (listen(server_fd, 10) == -1)
-    {
-        perror("listen");
-        close(server_fd);
-        return 1;
-    }
-
-    std::cout << "Server listening on port 8080\n";
-
+	server Server(8081);
     while (true)
     {
         int client_fd = accept(server_fd, NULL, NULL);
@@ -86,11 +52,7 @@ int main()
 
             if (content_length_pos == std::string::npos)
             {
-                std::string response =
-                    "HTTP/1.1 411 Length Required\r\n"
-                    "Content-Length: 0\r\n"
-                    "Connection: close\r\n"
-                    "\r\n";
+                std::string response = ;
 
                 write(client_fd, response.c_str(), response.size());
 
@@ -102,22 +64,15 @@ int main()
             // Obtener Content-Length
             // --------------------------------------
 
-            size_t value_start =
-                content_length_pos + 15;
+            size_t value_start = content_length_pos + 15;
 
-            size_t value_end =
-                request.find("\r\n", value_start);
+            size_t value_end = request.find("\r\n", value_start);
 
-            std::string length_string =
-                request.substr(
-                    value_start,
-                    value_end - value_start
-                );
+            std::string length_string =request.substr(value_start,value_end - value_start);
 
             int content_length = std::atoi(length_string.c_str());
 
-            std::cout << "Content-Length: "
-                      << content_length << "\n";
+            std::cout << "Content-Length: "<< content_length << "\n";
 
             // --------------------------------------
             // Encontrar comienzo del body
