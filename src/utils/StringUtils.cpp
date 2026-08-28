@@ -1,5 +1,6 @@
 #include "../../include/utils/StringUtils.hpp"
 #include <sstream>
+#include <cmath>
 
 namespace utils
 {
@@ -14,5 +15,52 @@ namespace utils
 			return false;
 		result = temp;
 		return true;
+	}
+
+	bool stringToUnsignedLongLong(const std::string& s, unsigned long long& result)
+	{
+		if (s.empty())
+			return false;
+
+		char* end = NULL;
+		unsigned long long value = strtoull(s.c_str(), &end, 10);
+		if (end == s.c_str())
+			return false; // no number
+
+		size_t multiplier = 1;
+		if (*end != '\0')
+		{
+			switch (tolower(*end))
+			{
+				case 'k':
+					multiplier = 1024;
+					break;
+				case 'm':
+					multiplier = std::pow(1024, 2);
+					break;
+				case 'g':
+					multiplier = std::pow(1024, 3);
+					break;
+				default:
+					return false; // invalid
+			}
+			// No more chars after sign
+			if (*(end + 1) != '\0')
+				return false;
+		}
+		// Check overflow
+		if (value > static_cast<unsigned long long>(-1) / multiplier)
+			return false;
+
+		result = static_cast<size_t>(value * multiplier);
+		return true;
+	}
+
+	std::string unsignedLongLongToString(const unsigned long long& num)
+	{
+		std::ostringstream oss;
+		oss << num;
+		std::string str = oss.str();
+		return str;
 	}
 }

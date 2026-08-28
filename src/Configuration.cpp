@@ -1,5 +1,9 @@
 #include "../include/Configuration.hpp"
+#include <cstddef>
+#include <exception>
 #include <stack>
+#include <stdexcept>
+#include <vector>
 #include "../include/utils/StringUtils.hpp"
 
 Configuration::Token::Token()
@@ -95,7 +99,7 @@ void Configuration::ProcessDirective(const std::vector<std::string>& args,
 	catch (const std::exception& e)
 	{
 		std::cerr << "Config error: " << e.what() << std::endl;
-		// Decide si continuar o relanzar
+		// TEMP Decide si continuar o relanzar
 	}
 }
 
@@ -105,11 +109,10 @@ void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
 	const std::string& directive = args[0];
 	if (directive == "server")
 	{
-		std::cerr << "Error: 'server' debe ser un bloque (server { ... })" << std::endl;
+		std::cerr << "Error: 'server' must be a block (server { ... })" << std::endl;
 		return;
 	}
-	// Directivas comunes que puede tener GlobalContext (root, index, error_page, etc.)
-	// Se invocan mediante polimorfismo: global->SetRoot(...)
+	// Common directives
 	if (directive == "root")
 	{
 		if (args.size() < 2)
@@ -131,7 +134,8 @@ void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
 	{
 		if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
-		global->SetClientMaxBodySize(args[1]);
+		unsigned long long num;
+		utils::stringToUnsignedLongLong(args[1], num) ? global->SetClientMaxBodySize(num) : global->SetClientMaxBodySize(1024 * 1024);
 	}
 	else if (directive == "error_page")
 	{
@@ -142,7 +146,6 @@ void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
 			throw std::invalid_argument("invalid error code: " + args[1]);
 		global->AddErrorPage(code, args[2]);
 	}
-	// No hay directivas específicas de global más allá de las comunes
 }
 
 void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
@@ -150,7 +153,7 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 {
 	const std::string& directive = args[0];
 
-	// Directivas comunes (también puede usarlas un servidor)
+	// Common directives
 	if (directive == "root")
 	{
 		if (args.size() < 2)
@@ -172,7 +175,8 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 	{
 		if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
-		server->SetClientMaxBodySize(args[1]);
+		unsigned long long num;
+		utils::stringToUnsignedLongLong(args[1], num) ? server->SetClientMaxBodySize(num) : server->SetClientMaxBodySize(1024 * 1024);
 	}
 	else if (directive == "error_page")
 	{
@@ -183,18 +187,18 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 			throw std::invalid_argument("invalid error code: " + args[1]);
 		server->AddErrorPage(code, args[2]);
 	}
-	// Directivas específicas de servidor
+	// Directives from the server context
 	else if (directive == "listen")
 	{
 		if (args.size() < 2)
 			throw std::invalid_argument("listen requires port");
 		unsigned int port;
-		// El último elemento es el puerto
+		// The last element is the port
 		if (!utils::stringToUnsignedInt(args[args.size()-1], port))
 			throw std::invalid_argument("invalid port: " + args[args.size()-1]);
-		if (args.size() == 2) // solo puerto
+		if (args.size() == 2) // only port
 			server->SetListen(port);
-		else if (args.size() == 3) // IP y puerto
+		else if (args.size() == 3) // IP and port
 			server->SetListen(args[1], port);
 		else
 			throw std::invalid_argument("listen takes 1 or 2 arguments");
@@ -212,8 +216,8 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 	}
 	else if (directive == "location")
 		std::cerr << "Error: 'location' debe ser un bloque (location ... { ... })" << std::endl;
-	// La adición de ubicaciones se hace desde el parser al encontrar un bloque location,
-	// no mediante esta función.
+	// The addition of locations is done from the parser when encountering a location block,
+	// not through this function.
 }
 
 void Configuration::ProcessLocationDirective(const std::vector<std::string>& args,
@@ -221,7 +225,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
 {
     const std::string& directive = args[0];
 
-    // Directivas comunes
+    // Common directives
     if (directive == "root")
 	{
         if (args.size() < 2)
@@ -243,7 +247,8 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
 	{
         if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
-        location->SetClientMaxBodySize(args[1]);
+        unsigned long long num;
+		utils::stringToUnsignedLongLong(args[1], num) ? location->SetClientMaxBodySize(num) : location->SetClientMaxBodySize(1024 * 1024);
     }
     else if (directive == "error_page")
 	{
@@ -254,13 +259,21 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
             throw std::invalid_argument("invalid error code: " + args[1]);
         location->AddErrorPage(code, args[2]);
     }
-    // Directivas específicas de ubicación
+    // Location context directives
     else if (directive == "limit_except")
 	{
         std::vector<Http::Method> methods;
         for (size_t i = 1; i < args.size(); ++i)
 		{
-            Http::Method m = GetMethod(args[i]);
+			Http::Method m;
+			try
+			{
+				m = GetMethod(args[i]);
+			}
+            catch(...)
+        	{
+         		throw std::invalid_argument("Couldn't find method; " + args[i]);
+         	}
             methods.push_back(m);
         }
         location->SetLimitExcept(methods);
@@ -283,7 +296,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
         if (args.size() >= 3)
 		{
             urlStr = args[2];
-            urlPtr = &urlStr; // urlStr vive durante la llamada, seguro
+            urlPtr = &urlStr;
         }
         location->SetReturn(code, urlPtr);
     }
@@ -305,7 +318,7 @@ bool Configuration::Parse()
 	}
 
 	size_t pos = 0;
-	std::vector<std::string> args;  // argumentos de la directiva actual
+	std::vector<std::string> args;  // args from the current directive
 	std::vector<State> stateStack;
 	stateStack.push_back(GLOBAL);
 
@@ -332,25 +345,31 @@ bool Configuration::Parse()
 			}
 			else
 			{
-				// Procesar según el contexto actual
-				ProcessDirective(args, stateStack.back(), global, currentServer, currentLocation);
+				// Process according the current context
+				try
+				{
+					ProcessDirective(args, stateStack.back(), global, currentServer, currentLocation);
+				}
+				catch(const std::exception& e)
+				{
+					std::cerr << e.what() << std::endl;
+					return false;
+				}
 				args.clear();
 			}
 		}
 		else if (tok.type == Token::OPEN_BRACE)
 		{
-			// El token anterior debió indicar el contexto: "server" o "location"
+			// he previous token should have indicated the context: "server" or "location"
 			if (args.empty())
-			{
-				/* error */ return false;
-			}
-			std::string blockType = args[0];   // primer token: "server" o "location"
+				return false;
+			std::string blockType = args[0];   // first token: "server" or "location"
 
 			if (blockType == "server")
 			{
 				if (stateStack.back() != GLOBAL)
 				{
-					std::cerr << "Error: bloque 'server' solo permitido en contexto global" << std::endl;
+					std::cerr << "Error: block 'server' only avaliable in global context" << std::endl;
 					return false;
 				}
 				ServerContext newServer;
@@ -363,20 +382,16 @@ bool Configuration::Parse()
 			{
 				if (stateStack.back() != SERVER)
 				{
-					std::cerr << "Error: bloque 'location' solo permitido dentro de un servidor" << std::endl;
+					std::cerr << "Error: block 'location' only avaliable inside a server" << std::endl;
 					return false;
 				}
 				if (args.size() < 2)
 				{
-					/* error: falta el path */
+					std::cerr << "Error: No path" << std::endl;
 					return false;
 				}
-
 				if (!currentServer)
-				{
-					/* error */
 					return false;
-				}
 
 				LocationContext newLoc(args[1]);
 
@@ -386,7 +401,7 @@ bool Configuration::Parse()
 			}
 			else
 			{
-				std::cerr << "Error: bloque desconocido '" << blockType << "'" << std::endl;
+				std::cerr << "Error: unkown block '" << blockType << "'" << std::endl;
 				return false;
 			}
 			args.clear();
@@ -396,11 +411,11 @@ bool Configuration::Parse()
 			if (stateStack.size() <= 1)
 				/* error */ return false;
 			stateStack.pop_back();
-			// Actualizar punteros según el nuevo estado
+			// Update pointers for the current state
 			if (stateStack.back() == SERVER)
 			{
 				currentLocation = NULL;
-				// currentServer sigue siendo el mismo
+				// currentServer is still the same
 			}
 			else if
 			(stateStack.back() == GLOBAL)
@@ -412,10 +427,138 @@ bool Configuration::Parse()
 	}
 	if (stateStack.size() != 1)
 	{
-		std::cerr << "Error: llaves desbalanceadas (faltan cierres de bloque)" << std::endl;
+		std::cerr << "Error: unbalance braces (missing closing braces)" << std::endl;
 		return false;
 	}
 	return true;
+}
+
+void CheckLocation(const ServerContext& server, LocationContext& location)
+{
+	if (location.GetRoot() == NULL)
+		location.SetRoot(*server.GetRoot());
+	if (location.GetAutoIndex() == NULL)
+		location.SetAutoIndex(server.GetAutoIndex());
+	if (location.GetClientMaxBodySize() == NULL)
+		location.SetClientMaxBodySize(*server.GetClientMaxBodySize());
+	if (location.GetIndexes() == NULL)
+	{
+		for (size_t i = 0; i < server.GetIndexes()->size(); i++)
+			location.AddIndex(*server.GetIndex(i));
+	}
+	if (location.GetErrorPages() == NULL)
+	{
+		if (server.GetErrorPages() != NULL)
+		{
+			for (size_t i = 0; i < server.GetErrorPages()->size(); i++)
+			{
+				std::pair<const unsigned int, std::string> values = *(server.GetErrorPageIndex(i));
+				location.AddErrorPage(values.first, values.second);
+			}
+		}
+	}
+	if (location.GetCgiHandlers() == NULL)
+	{
+		if (server.GetCgiHandlers() != NULL)
+		{
+			for (size_t i = 0; i < server.GetCgiHandlers()->size(); i++)
+			{
+				std::pair<const std::string, std::string> values = *(server.GetCgiHandlerIndex(i));
+				location.SetCgiHandler(values.first, values.second);
+			}
+		}
+	}
+	if (location.GetLimitExcepts() == NULL)
+	{
+		std::vector<Http::Method>methods;
+		methods.push_back(Http::GET);
+		methods.push_back(Http::POST);
+		location.SetLimitExcept(methods);
+	}
+}
+
+void CheckServer(const GlobalContext& global, ServerContext& server)
+{
+	if (server.GetListens() == NULL)
+		server.SetListen(80);
+	if (server.GetServerNames() == NULL)
+		server.AddServerName("");
+	if (server.GetRoot() == NULL)
+		server.SetRoot(*global.GetRoot());
+	if (server.GetIndexes() == NULL)
+		server.AddIndex("index.html");
+	if (server.GetErrorPages() == NULL)
+	{
+		if (global.GetErrorPages() != NULL)
+		{
+			for (size_t i = 0; i < global.GetErrorPages()->size(); i++)
+			{
+				std::pair<const unsigned int, std::string> values = *(global.GetErrorPageIndex(i));
+				server.AddErrorPage(values.first, values.second);
+			}
+		}
+	}
+	if (server.GetAutoIndex() == NULL)
+		server.SetAutoIndex(global.GetAutoIndex());
+	if (server.GetClientMaxBodySize() == NULL)
+		server.SetClientMaxBodySize(*global.GetClientMaxBodySize());
+	if (server.GetLocations() == NULL)
+	{
+		LocationContext tmpLocation;
+		tmpLocation.SetRoot(*server.GetRoot());
+		tmpLocation.SetAutoIndex(server.GetAutoIndex());
+		tmpLocation.SetClientMaxBodySize(*server.GetClientMaxBodySize());
+		for (size_t i = 0; i < server.GetIndexes()->size(); i++)
+			tmpLocation.AddIndex(*server.GetIndex(i));
+		for (size_t i = 0; i < server.GetErrorPages()->size(); i++)
+		{
+			std::pair<const unsigned int, std::string> values = *(server.GetErrorPageIndex(i));
+			tmpLocation.AddErrorPage(values.first, values.second);
+		}
+		if (server.GetCgiHandlers() != NULL)
+		{
+			for (size_t i = 0; i < server.GetCgiHandlers()->size(); i++)
+			{
+				std::pair<const std::string, std::string> values = *(server.GetCgiHandlerIndex(i));
+				tmpLocation.SetCgiHandler(values.first, values.second);
+			}
+		}
+		std::vector<Http::Method>methods;
+		methods.push_back(Http::GET);
+		methods.push_back(Http::POST);
+		tmpLocation.SetLimitExcept(methods);
+		server.AddLocation(tmpLocation);
+	}
+	else
+	{
+		for (size_t i = 0; i < server.GetLocations()->size(); i++)
+			CheckLocation(server, server.GetLocation(i));
+	}
+}
+
+void CheckGlobal(GlobalContext& global)
+{
+	if (global.GetRoot() == NULL)
+		global.SetRoot("html");
+	if (global.GetIndexes() == NULL)
+		global.AddIndex("index.html");
+	if (global.GetAutoIndex() == NULL)
+		global.SetAutoIndex(false);
+	if (global.GetClientMaxBodySize() == NULL)
+	{
+		unsigned long long num;
+		utils::stringToUnsignedLongLong("1m", num);
+		global.SetClientMaxBodySize(num);
+	}
+	for (size_t i = 0; i < global.GetServers()->size(); i++)
+		CheckServer(global, global.GetServer(i));
+}
+
+
+
+void Configuration::FillWithDefaultVals()
+{
+	CheckGlobal(_globalBlock);
 }
 
 Http::Method Configuration::GetMethod(const std::string& arg)
@@ -433,8 +576,10 @@ Configuration::Configuration(std::string confPath) : _confPath(confPath)
 {
 
 	if (!FileExistAndReadable(confPath))
-		throw std::exception();
-	Parse();
+		throw std::invalid_argument("Invalid config path.");
+	if (!Parse())
+		throw std::invalid_argument("Invalid values in config file.");
+	FillWithDefaultVals();
 }
 
 Configuration::Configuration(const Configuration& other)
