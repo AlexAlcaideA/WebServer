@@ -8,6 +8,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <vector>
+#include <set>
+#include <map>
+#include <stdexcept>
+#include <ostream>
+
+#include "utils/HttpMethod.hpp"
 
 #include "defines.h"
 

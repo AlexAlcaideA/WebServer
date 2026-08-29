@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace Http
 {
 	enum Method
@@ -8,4 +10,6 @@ namespace Http
 		POST,
 		DELETE,
 	};
+
+	std::string methodToString(Method method);
 }

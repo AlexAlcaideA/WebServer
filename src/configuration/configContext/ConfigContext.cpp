@@ -1,6 +1,6 @@
-#include "../../include/configContext/ConfigContext.hpp"
+#include "../../../Includes/configuration/configContext/ConfigContext.hpp"
 #include <iterator>
-#include "../../include/utils/StringUtils.hpp"
+#include "../../../Includes/utils/StringUtils.hpp"
 
 void ConfigContext::print(std::ostream& os) const
 {

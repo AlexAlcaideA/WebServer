@@ -1,10 +1,8 @@
-#include "../include/Configuration.hpp"
+#include "../../Includes/configuration/Configuration.hpp"
 #include <cstddef>
 #include <exception>
 #include <stack>
-#include <stdexcept>
-#include <vector>
-#include "../include/utils/StringUtils.hpp"
+#include "../../Includes/utils/StringUtils.hpp"
 
 Configuration::Token::Token()
 {}
@@ -135,7 +133,7 @@ void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
 		if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
 		unsigned long long num;
-		utils::stringToUnsignedLongLong(args[1], num) ? global->SetClientMaxBodySize(num) : global->SetClientMaxBodySize(1024 * 1024);
+		utils::stringToBytes(args[1], num) ? global->SetClientMaxBodySize(num) : global->SetClientMaxBodySize(1024 * 1024);
 	}
 	else if (directive == "error_page")
 	{
@@ -176,7 +174,7 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 		if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
 		unsigned long long num;
-		utils::stringToUnsignedLongLong(args[1], num) ? server->SetClientMaxBodySize(num) : server->SetClientMaxBodySize(1024 * 1024);
+		utils::stringToBytes(args[1], num) ? server->SetClientMaxBodySize(num) : server->SetClientMaxBodySize(1024 * 1024);
 	}
 	else if (directive == "error_page")
 	{
@@ -248,7 +246,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
         if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
         unsigned long long num;
-		utils::stringToUnsignedLongLong(args[1], num) ? location->SetClientMaxBodySize(num) : location->SetClientMaxBodySize(1024 * 1024);
+		utils::stringToBytes(args[1], num) ? location->SetClientMaxBodySize(num) : location->SetClientMaxBodySize(1024 * 1024);
     }
     else if (directive == "error_page")
 	{
@@ -547,7 +545,7 @@ void CheckGlobal(GlobalContext& global)
 	if (global.GetClientMaxBodySize() == NULL)
 	{
 		unsigned long long num;
-		utils::stringToUnsignedLongLong("1m", num);
+		utils::stringToBytes("1m", num);
 		global.SetClientMaxBodySize(num);
 	}
 	for (size_t i = 0; i < global.GetServers()->size(); i++)

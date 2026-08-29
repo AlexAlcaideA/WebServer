@@ -1,15 +1,8 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <map>
-#include <unistd.h>
-#include <fstream>
-#include <iostream>
 #include "configContext/GlobalContext.hpp"
 #include "configContext/ServerContext.hpp"
 #include "configContext/LocationContext.hpp"
-#include "utils/HttpMethod.hpp"
 
 class Configuration
 {
