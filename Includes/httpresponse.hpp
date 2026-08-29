@@ -24,5 +24,10 @@ class httpresponse
 	httpresponse(const httpresponse& otro);
 // Sobrecarga operador asignacion
 	httpresponse &operator= (const httpresponse& otro);
+class ResponseError : public std::exception
+{
+	public:
+	virtual const char *what() const throw();
+};
 };
 #endif

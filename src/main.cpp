@@ -12,5 +12,6 @@ int main(int argc, char **argv)
 	std::string confRoot = argv[1];
 	Configuration conf(confRoot);
 	std::cout << conf;
+	mainloop(conf);
 	return 0;
 }

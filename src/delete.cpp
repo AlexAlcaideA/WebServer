@@ -33,7 +33,7 @@ int main()
 		httpreq request(received);
 
 		DefaultResponse answer;
-		std::string filename = .getPath();
+		std::string filename = request.getPath();
         if (request.getMethod() == "DELETE")
         {
             if (remove(filename.c_str()) == 0)

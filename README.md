@@ -5,6 +5,8 @@ Usamos ipv4 y poll
 
 ## Resources
 
+- [datatracker](https://datatracker.ietf.org/doc/html/rfc3253#section-1)
+- [mockoon](https://mockoon.com/articles/list-http-request-methods/)
 - [CURL](https://curl.se/docs/httpscripting.html)
 - [HTTPstatus](http.cat)
 - [SNMP]()
@@ -26,7 +28,7 @@ Usamos ipv4 y poll
 - [] -Anyadir excepciones a las clases
 - [x] -Metodo post
 - [] -Mejorar los tres
-- [] -Mergear con lo de alex
+- [x] -Mergear con lo de alex
 - [] -Utilizar el sistema poll
 - [] -Utilizar el config para el server
 - [] -Cambiar error pages a utilizar map
@@ -58,6 +60,7 @@ HEAD
 411 Lenght required: Un mal request no da la lenght del body
 418 I'm a teapot: Servidor se niega a hacer cafe porque es una tetera
 500 Internal Server Error: El servidor ha petado o ha encontrado un error
+501 Not Implemented: El servidor no ha implementado ese metodo
 503 Service Unavailable: El servicio esta temporalmente no disponible
 
 - Puertos:
@@ -72,8 +75,13 @@ puerto 631:ipp (sirve para imprimir)
 ## Librerias
 - poll -> <poll.h> 
 - select -> <sys/select.h>
-- kqueue
+- kqueue -> <sys/time.h> <sys/event.h> <sys/types.h>
 - epoll -> <sys/epoll.h>
+- execve, pipe -> <unistd.h>
+- strerror -> <string.h>
+- errno -> <cerrno>
+- gai_strerror -> <netdb.h> <sys/socket.h>
+
 
 ## Que hacen
 -[x]execve: Sustituye el proceso por uno nuevo

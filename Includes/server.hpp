@@ -1,28 +1,29 @@
 #ifndef SERVER_HPP
 # define SERVER_HPP
-#include <sys/socket.h>
-#include <netinet/in.h>
+
+# include "includes.hpp"
+
+class client;
+
 class server
 {
 	private:
-		int server_fd;
-		sockaddr_in address;
+		int		server_fd;
+		int		port;
+		struct sockaddr_in	address;
+		std::vector<struct pollfd>	poll_fds;
+		std::vector<client>	clients;
 
-	protected:
-
+		void	setupSocket();
+		void	acceptClient();
+		void	handleClient(size_t i);
+		void	removeClient(size_t i);
+		int     get_server_fd(void) const;
 	public:
-
-	server(int puerto);
-// Destructor default
-	~server(void);
-// Constructor default
-	server(void);
-// Constructor copia
-	server(const server& otro);
-//Getters
-	int get_server_fd(void)const;
-// Sobrecarga operador asignacion
-	server &operator= (const server& otro);
+		server(int port);
+		~server();
+		server& operator=(const server&);
+		server(const server& otro);
+		void	run();
 };
-
 #endif
