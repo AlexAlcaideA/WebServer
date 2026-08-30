@@ -12,7 +12,7 @@ class server
 		int		port;
 		struct sockaddr_in	address;
 		std::vector<struct pollfd>	poll_fds;
-		std::vector<client>	clients;
+		std::vector<client*>	clients;
 
 		void	setupSocket();
 		void	acceptClient();

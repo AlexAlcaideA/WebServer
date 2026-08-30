@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include "../include/Configuration.hpp"
+#include "includes.hpp"
 
 int main(int argc, char **argv)
 {
@@ -12,6 +13,16 @@ int main(int argc, char **argv)
 	std::string confRoot = argv[1];
 	Configuration conf(confRoot);
 	std::cout << conf;
-	mainloop(conf);
+	try
+	{
+		server srv(8080);
+		srv.run();
+	}
+	catch (const std::exception &e)
+	{
+		std::cerr << e.what() << std::endl;
+		return (1);
+	}
+
 	return 0;
 }

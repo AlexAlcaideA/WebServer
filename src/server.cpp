@@ -65,6 +65,11 @@ void	server::setupSocket()
 	address.sin_port = htons(port);
 
 	setupSocket();
+	struct pollfd pfd;
+	pfd.fd = server_fd;
+	pfd.events = POLLIN;
+	pfd.revents = 0;
+	poll_fds.push_back(pfd);
 	std::cout << "Server listening on port " << port << std::endl;
 }
 void server::acceptClient()
@@ -81,7 +86,7 @@ void server::acceptClient()
 
 	std::cout << "New client: " << fd << std::endl;
 
-	client new_client(fd);
+	client* new_client = new client(fd);
 	clients.push_back(new_client);
 
 	struct pollfd pfd;
@@ -93,18 +98,21 @@ void server::acceptClient()
 }
 void server::handleClient(size_t i)
 {
-	if (!clients[i].receive())
+	
+	if (!clients[i -1]->receive())
 	{
 		removeClient(i);
 		return;
 	}
 
 	std::cout << "Received:\n";
-	std::cout << clients[i].getBuffer();
+	std::string rec(*clients[i-1]->getBuffer());
+	std::cout << rec << std::endl;
 
 	DefaultResponse ans;
 	std::string answer = ans.getString(SUCCESS);
-	send(clients[i].getFd(), answer.c_str(), answer.length(), 0);
+	std::cout << answer << std::endl;
+	send(poll_fds[i].fd, answer.c_str(), answer.length(), 0);
 
 	removeClient(i);
 }
@@ -132,9 +140,10 @@ void server::run()
 		}
 	}
 }
-void	server::removeClient(unsigned long i)
+void server::removeClient(unsigned long i)
 {
 	close(poll_fds[i].fd);
+	delete clients[i -1];
 	poll_fds.erase(poll_fds.begin() + i);
-	clients.erase(clients.begin() + (i - 1));
+	clients.erase(clients.begin() + (i-1));
 }

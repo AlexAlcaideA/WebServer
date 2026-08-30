@@ -19,7 +19,7 @@ class client
 
 		int	getFd() const;
 		bool		receive();
-		char*	&getBuffer();
+		char (*getBuffer())[BUFF_SIZE];
 		size_t	getBytes() const;
 };
 

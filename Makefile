@@ -15,7 +15,7 @@ OBJDIR        = obj
 # Módulos / subdirectorios (fuentes explícitas)
 # -------------------------------------------------
 # Archivos sin subdirectorio
-SRCS_MAIN     = main.cpp Configuration.cpp
+SRCS_MAIN     = main.cpp Configuration.cpp client.cpp server.cpp
 
 # Archivos en src/configContext/
 CONFCONTEXT_DIR  = configContext
