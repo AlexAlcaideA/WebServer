@@ -8,29 +8,43 @@ class HttpRequest
 		std::string _requestTarget;
 		std::string _httpVersion;
 
-		std::map<std::string, std::string> headers;
+		std::map<std::string, std::string> _headers;
 		size_t _contentLenght;
 		std::string* _content;
 
 	protected:
 
 	public:
+// Constructor por defecto
+	HttpRequest();
 // Constructor parametrizado
 	HttpRequest(const std::string& text);
+	HttpRequest(Http::Method method, const std::string& requestTarget, const std::string& httpVersion);
+	HttpRequest(Http::Method method, const std::string& requestTarget, const std::string& httpVersion,
+		const std::map<std::string, std::string>& map, size_t contentLenght, const std::string& content);
+	HttpRequest(const HttpRequest& other);
+// Operadores
+	HttpRequest& operator=(const HttpRequest& other);
 // Destructor default
 	~HttpRequest();
 // Getters
-	const Http::Method getMethod() const;
-	const std::string getRequestTarget() const;
-	const std::string getHttpVersion() const;
+	Http::Method getMethod() const;
+	const std::string& getRequestTarget() const;
+	const std::string& getHttpVersion() const;
 
-	const std::string* getHost() const;
-	const std::string* getUserAgent() const;
-	const std::string* getAccept() const;
-	const std::string* getContentType() const;
-	const size_t getContentLenght() const;
-	const std::string getContent() const;
+	const std::map<std::string, std::string>& getHeaders() const;
+	const std::string* getHeader(const std::string& key) const;
+	const std::string* getHeader(const HttpHeaders::Headers& header) const;
+	size_t getContentLenght() const;
+	const std::string* getContent() const;
 
-	const std::string getStringRequest() const;
+	std::string getStringRequest() const;
+// Setters
+	void setHeader(const std::string& headerKey, const std::string& headerVal);
+	void setContentLenght(size_t lenght);
+	void setContent(const std::string& content);
 };
+
+std::ostream& operator<<(std::ostream& os, const HttpRequest& other);
+
 #endif

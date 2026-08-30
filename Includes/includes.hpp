@@ -15,6 +15,7 @@
 #include <ostream>
 
 #include "utils/HttpMethod.hpp"
+#include "utils/HttpHeaders.hpp"
 
 #include "defines.h"
 

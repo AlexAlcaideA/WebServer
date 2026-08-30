@@ -1,6 +1,10 @@
 #include "../Includes/HttpRequest.hpp"
 #include "../Includes/utils/StringUtils.hpp"
 
+HttpRequest::HttpRequest()
+	: _method(Http::UNKNOWN), _contentLenght(0), _content(NULL)
+{}
+
 HttpRequest::HttpRequest(const std::string& text)
 	: _contentLenght(0), _content(NULL)
 {
@@ -14,13 +18,8 @@ HttpRequest::HttpRequest(const std::string& text)
 		_requestTarget = pathStr;
 		_httpVersion = versionStr;
 
-		if (methodStr == "GET")
-			_method = Http::GET;
-		else if (methodStr == "POST")
-			_method = Http::POST;
-		else if (methodStr == "DELETE")
-			_method = Http::DELETE;
-		else
+		_method = Http::stringToMethod(methodStr);
+		if (_method == Http::UNKNOWN)
 			throw std::invalid_argument("Method not found or accepted.");
 	}
 	else
@@ -38,24 +37,31 @@ HttpRequest::HttpRequest(const std::string& text)
 		std::string headerLine;
 		while (std::getline(headersStream, headerLine))
 		{
-			if (!headerLine.empty() && headerLine.back() == '\r')
-				headerLine.pop_back();
+			if (!headerLine.empty() && headerLine[headerLine.size() - 1] == '\r')
+				headerLine.erase(headerLine.size() - 1);
 
 			size_t colonPos = headerLine.find(':');
 			if (colonPos != std::string::npos)
 			{
 				std::string name = headerLine.substr(0, colonPos);
 				std::string value = headerLine.substr(colonPos + 1);
+
+				size_t firstNonSpace = value.find_first_not_of(" \t");
+				if (firstNonSpace != std::string::npos)
+					value = value.substr(firstNonSpace);
+				else
+					value = "";
+
 				if (name == "Content-Lenght")
 				{
 					if (!utils::stringToUnsignedLong(value, _contentLenght))
 						std::cerr << "Incorrect number for Content-Lenght: " << value << std::endl;
 				}
 				else
-					headers[name] = value;
+					_headers[name] = value;
 			}
 		}
-		if (_method != Http::POST) // PATCH && PUT
+		if (_method != Http::POST) // + PATCH && PUT if we add them
 			return;
 		// Message body only POST currently
 		size_t bodyStart = headersEnd + 4;
@@ -68,77 +74,116 @@ HttpRequest::HttpRequest(const std::string& text)
 	}
 }
 
+HttpRequest::HttpRequest(Http::Method method, const std::string& requestTarget, const std::string& httpVersion)
+	: _method(method), _requestTarget(requestTarget), _httpVersion(httpVersion), _contentLenght(0), _content(NULL)
+{}
+
+HttpRequest::HttpRequest(Http::Method method, const std::string& requestTarget, const std::string& httpVersion,
+	const std::map<std::string, std::string>& map, size_t contentLenght, const std::string& content)
+		: _method(method), _requestTarget(requestTarget), _httpVersion(httpVersion),
+			_headers(map), _contentLenght(contentLenght), _content(new std::string(content))
+{}
+
+HttpRequest::HttpRequest(const HttpRequest& other)
+{
+	*this = other;
+}
+
+HttpRequest& HttpRequest::operator=(const HttpRequest& other)
+{
+	if (this != &other)
+	{
+		_method = other._method;
+		_requestTarget = other._requestTarget;
+		_httpVersion = other._httpVersion;
+		_headers = other._headers;
+		_contentLenght = other._contentLenght;
+		if (_content)
+			delete _content;
+		_content = new std::string(*(other._content));
+	}
+	return *this;
+}
+
 HttpRequest::~HttpRequest()
 {
 	if (_content)
 		delete _content;
 }
 
-const Http::Method HttpRequest::getMethod() const
+Http::Method HttpRequest::getMethod() const
 {
 	return _method;
 }
 
-const std::string HttpRequest::getRequestTarget() const
+const std::string& HttpRequest::getRequestTarget() const
 {
 	return _requestTarget;
 }
 
-const std::string HttpRequest::getHttpVersion() const
+const std::string& HttpRequest::getHttpVersion() const
 {
 	return _httpVersion;
 }
 
-const std::string* HttpRequest::getHost() const
+const std::map<std::string, std::string>& HttpRequest::getHeaders() const
 {
-	std::map<std::string, std::string>::const_iterator it = headers.find("Host");
-	if (it == headers.end())
+	return _headers;
+}
+
+const std::string* HttpRequest::getHeader(const std::string& key) const
+{
+	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+	if (it == _headers.end())
 		return NULL;
 	return &(it->second);
 }
 
-const std::string* HttpRequest::getUserAgent() const
+const std::string* HttpRequest::getHeader(const HttpHeaders::Headers& header) const
 {
-	std::map<std::string, std::string>::const_iterator it = headers.find("User-Agent");
-	if (it == headers.end())
+	std::string key;
+	try
+	{
+		key = HttpHeaders::HeadersToString(header);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+		return NULL;
+	}
+	
+	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+	if (it == _headers.end())
 		return NULL;
 	return &(it->second);
 }
 
-const std::string* HttpRequest::getAccept() const
-{
-	std::map<std::string, std::string>::const_iterator it = headers.find("Accept");
-	if (it == headers.end())
-		return NULL;
-	return &(it->second);
-}
-
-const std::string* HttpRequest::getContentType() const
-{
-	std::map<std::string, std::string>::const_iterator it = headers.find("Content-Type");
-	if (it == headers.end())
-		return NULL;
-	return &(it->second);
-}
-
-const size_t HttpRequest::getContentLenght() const
+size_t HttpRequest::getContentLenght() const
 {
 	return _contentLenght;
 }
 
-const std::string HttpRequest::getContent() const
+const std::string* HttpRequest::getContent() const
 {
-	return *_content;
+	return _content;
 }
 
-const std::string HttpRequest::getStringRequest() const
+std::string HttpRequest::getStringRequest() const
 {
 	std::ostringstream oss;
 
 	// First line
-	oss << Http::methodToString(_method) << " " << _requestTarget << " " << _httpVersion << "\r\n";
+	try
+	{
+		oss << Http::methodToString(_method) << " " << _requestTarget << " " << _httpVersion << "\r\n";
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	
 	// Headers
-	for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it)
+	for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); it != _headers.end(); ++it)
     	oss << it->first << ": " << it->second << "\r\n";
 	// End of headers
 	oss << "\r\n";
@@ -146,4 +191,27 @@ const std::string HttpRequest::getStringRequest() const
 	if (_content && !_content->empty())
 		oss << *_content;
 	return oss.str();
+}
+
+void HttpRequest::setHeader(const std::string& headerKey, const std::string& headerVal)
+{
+	_headers[headerKey] = headerVal;
+}
+
+void HttpRequest::setContentLenght(size_t lenght)
+{
+	_contentLenght = lenght;
+}
+
+void HttpRequest::setContent(const std::string& content)
+{
+	if (_content)
+		delete _content;
+	_content = new std::string(content);
+}
+
+std::ostream& operator<<(std::ostream& os, const HttpRequest& other)
+{
+	os << other.getStringRequest();
+	return os;
 }

@@ -9,7 +9,9 @@ namespace Http
 		GET,
 		POST,
 		DELETE,
+		UNKNOWN
 	};
 
 	std::string methodToString(Method method);
+	Method stringToMethod(const std::string& str);
 }

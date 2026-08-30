@@ -1,6 +1,7 @@
 #include "../../Includes/utils/StringUtils.hpp"
 #include <sstream>
 #include <cmath>
+#include <cerrno>
 
 namespace utils
 {
