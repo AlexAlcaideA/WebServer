@@ -1,3 +1,4 @@
+#include <exception>
 #include <iostream>
 #include <string>
 #include "../include/Configuration.hpp"
@@ -5,14 +6,32 @@
 
 int main(int argc, char **argv)
 {
-	if (argc != 2)
+	std::string confRoot;
+	if (argc < 2)
 	{
-		std::cerr << "Need a configuration file." << std::endl;
+		std::cout << "Using default config file." << std::endl;
+		confRoot = "config/default-config.conf";
+	}
+	else if (argc == 2)
+		confRoot = argv[1];
+	else
+	{
+		std::cerr << "Too many arguments." << std::endl;
 		return 1;
 	}
-	std::string confRoot = argv[1];
 	Configuration conf(confRoot);
 	std::cout << conf;
+	try
+	{
+		Configuration conf(confRoot);
+		std::cout << conf;
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << e.what() <<  std::endl;
+		return 1;
+	}
+
 	try
 	{
 		server srv(8080);
@@ -23,6 +42,5 @@ int main(int argc, char **argv)
 		std::cerr << e.what() << std::endl;
 		return (1);
 	}
-
 	return 0;
 }
