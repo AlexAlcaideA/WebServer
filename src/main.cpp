@@ -1,5 +1,5 @@
-#include "../Includes/configuration/Configuration.hpp"
-#include "../Includes/HttpRequest.hpp"
+#include "../include/configuration/Configuration.hpp"
+#include "../include/HttpRequest.hpp"
 
 int main(int argc, char **argv)
 {

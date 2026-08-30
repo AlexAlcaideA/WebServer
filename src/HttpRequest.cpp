@@ -1,5 +1,5 @@
-#include "../Includes/HttpRequest.hpp"
-#include "../Includes/utils/StringUtils.hpp"
+#include "../include/HttpRequest.hpp"
+#include "../include/utils/StringUtils.hpp"
 
 HttpRequest::HttpRequest()
 	: _method(Http::UNKNOWN), _contentLenght(0), _content(NULL)

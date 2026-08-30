@@ -1,4 +1,4 @@
-#include "../../../Includes/configuration/configContext/GlobalContext.hpp"
+#include "../../../include/configuration/configContext/GlobalContext.hpp"
 
 GlobalContext::GlobalContext()
 	: ConfigContext(),

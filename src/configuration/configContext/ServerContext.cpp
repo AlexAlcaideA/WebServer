@@ -1,4 +1,4 @@
-#include "../../../Includes/configuration/configContext/ServerContext.hpp"
+#include "../../../include/configuration/configContext/ServerContext.hpp"
 #include <iterator>
 
 ServerContext::ServerContext()

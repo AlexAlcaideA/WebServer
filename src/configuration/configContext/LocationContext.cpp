@@ -1,4 +1,4 @@
-#include "../../../Includes/configuration/configContext/LocationContext.hpp"
+#include "../../../include/configuration/configContext/LocationContext.hpp"
 
 LocationContext::LocationContext()
 	: ConfigContext(),

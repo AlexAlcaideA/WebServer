@@ -1,4 +1,4 @@
-#include "../../Includes/utils/HttpMethod.hpp"
+#include "../../include/utils/HttpMethod.hpp"
 #include <stdexcept>
 
 namespace Http

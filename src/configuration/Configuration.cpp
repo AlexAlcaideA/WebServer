@@ -1,8 +1,8 @@
-#include "../../Includes/configuration/Configuration.hpp"
+#include "../../include/configuration/Configuration.hpp"
 #include <cstddef>
 #include <exception>
 #include <stack>
-#include "../../Includes/utils/StringUtils.hpp"
+#include "../../include/utils/StringUtils.hpp"
 
 Configuration::Token::Token()
 {}
