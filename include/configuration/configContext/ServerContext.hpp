@@ -2,7 +2,6 @@
 
 #include "ConfigContext.hpp"
 #include "LocationContext.hpp"
-#include <set>
 
 class ServerContext : public ConfigContext
 {

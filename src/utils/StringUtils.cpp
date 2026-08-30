@@ -1,6 +1,7 @@
 #include "../../include/utils/StringUtils.hpp"
 #include <sstream>
 #include <cmath>
+#include <cerrno>
 
 namespace utils
 {
@@ -17,7 +18,26 @@ namespace utils
 		return true;
 	}
 
-	bool stringToUnsignedLongLong(const std::string& s, unsigned long long& result)
+	bool stringToUnsignedLong(const std::string& s, unsigned long& result)
+	{
+		if (s.empty())
+			return false;
+
+		errno = 0;
+		char* end = NULL;
+		unsigned long value = strtoul(s.c_str(), &end, 10);
+		if (errno == ERANGE)
+			return false;
+		if (end == s.c_str())
+			return false; // no number
+		if (*end != '\0')
+			return false; // characters after the number
+
+		result = value;
+		return true;
+	}
+
+	bool stringToBytes(const std::string& s, unsigned long long& result)
 	{
 		if (s.empty())
 			return false;
@@ -63,4 +83,13 @@ namespace utils
 		std::string str = oss.str();
 		return str;
 	}
+
+	std::string unsignedLongToString(const unsigned long& num)
+	{
+		std::ostringstream oss;
+		oss << num;
+		std::string str = oss.str();
+		return str;
+	}
+
 }

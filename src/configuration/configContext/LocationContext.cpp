@@ -1,4 +1,4 @@
-#include "../../include/configContext/LocationContext.hpp"
+#include "../../../include/configuration/configContext/LocationContext.hpp"
 
 LocationContext::LocationContext()
 	: ConfigContext(),
@@ -178,7 +178,7 @@ std::ostream& operator<<(std::ostream& os, const LocationContext& other)
 	{
 		for (size_t i = 0; i < other.GetLimitExcepts()->size(); ++i)
 		{
-			switch (*other.GetLimitExcept(i))
+			switch (*(other.GetLimitExcept(i)))
 			{
 				case Http::GET:
 					os << "GET ";
@@ -188,6 +188,9 @@ std::ostream& operator<<(std::ostream& os, const LocationContext& other)
 					break;
 				case Http::DELETE:
 					os << "DELETE ";
+					break;
+				default:
+					os << "Incorrect method.";
 					break;
 			}
 		}

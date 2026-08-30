@@ -11,10 +11,17 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <poll.h>
-#include <map>
 #include <fcntl.h>
+
 #include <vector>
+#include <set>
+#include <map>
+#include <stdexcept>
+#include <ostream>
 //Propios
+#include "utils/HttpMethod.hpp"
+#include "utils/HttpHeaders.hpp"
+
 #include "defines.h"
 #include "client.hpp"
 #include "server.hpp"
