@@ -1,6 +1,26 @@
 #include "../../../include/configuration/configContext/ServerContext.hpp"
 #include <iterator>
 
+bool ServerContext::isValidIPv4(const std::string& ip)
+{
+	struct addrinfo hints, *res;
+	std::memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_INET;       // solo IPv4
+	hints.ai_socktype = SOCK_STREAM; // no importa para validar
+	hints.ai_flags = AI_NUMERICHOST; // no resolver nombres
+
+	int status = getaddrinfo(ip.c_str(), NULL, &hints, &res);
+	if (status != 0)
+		return false;
+	freeaddrinfo(res);
+	return true;
+}
+
+bool ServerContext::isValidPort(unsigned int port)
+{
+	return port > 0 && port <= 65535;
+}
+
 ServerContext::ServerContext()
 	: ConfigContext(),
 	_listen(NULL), _serverName(NULL), _location(NULL), _cgiHandlers(NULL)
@@ -61,11 +81,18 @@ bool ServerContext::operator==(const ServerContext& other) const
 
 void ServerContext::SetListen(const unsigned int& port)
 {
+	if (!isValidPort(port))
+		throw std::invalid_argument("Invalid port number.");
 	SetListen("0.0.0.0", port);
 }
 
 void ServerContext::SetListen(const std::string& ip, const unsigned int& port)
 {
+	if (!isValidPort(port))
+		throw std::invalid_argument("Invalid port number.");
+	if (!isValidIPv4(ip))
+		throw std::invalid_argument("Invalid ip " + ip);
+
 	if (!_listen)
 		_listen = new std::set<ServerListen>();
 

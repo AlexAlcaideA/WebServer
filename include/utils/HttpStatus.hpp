@@ -1,0 +1,30 @@
+#pragma once
+
+#include <string>
+
+namespace HttpStatus
+{
+	enum HttpStatusCode
+	{
+		SUCCESS = 200,
+		CREATED = 201,
+		ACCEPTED = 202,
+		NO_CONTENT = 204,
+		MOVED_PERMANENTLY = 301,
+		FOUND = 302,
+		NOT_MODIFIED = 304,
+		BAD_REQUEST = 400,
+		UNAUTHORIZED = 401,
+		FORBIDDEN = 403,
+		NOT_FOUND = 404,
+		METHOD_NOT_ALLOWED = 405,
+		LENGTH_REQUIRED = 411,
+		TEAPOT = 418,
+		INTERNAL_ERROR = 500,
+		NOT_IMPLEMENTED = 501,
+		SERVICE_DOWN = 503
+	};
+
+	std::string reasonPhrase(HttpStatusCode code);
+	std::string reasonPhrase(size_t code);
+}

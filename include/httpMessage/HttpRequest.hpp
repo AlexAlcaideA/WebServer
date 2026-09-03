@@ -1,18 +1,11 @@
 #ifndef HTTPREQUEST_HPP
 # define HTTPREQUEST_HPP
-#include "includes.hpp"
-class HttpRequest
+#include "HttpMessage.hpp"
+class HttpRequest : public HttpMessage
 {
 	private:
 		Http::Method _method;
 		std::string _requestTarget;
-		std::string _httpVersion;
-
-		std::map<std::string, std::string> _headers;
-		size_t _contentLenght;
-		std::string* _content;
-
-	protected:
 
 	public:
 // Constructor por defecto
@@ -30,19 +23,8 @@ class HttpRequest
 // Getters
 	Http::Method getMethod() const;
 	const std::string& getRequestTarget() const;
-	const std::string& getHttpVersion() const;
 
-	const std::map<std::string, std::string>& getHeaders() const;
-	const std::string* getHeader(const std::string& key) const;
-	const std::string* getHeader(const HttpHeaders::Headers& header) const;
-	size_t getContentLenght() const;
-	const std::string* getContent() const;
-
-	std::string getStringRequest() const;
-// Setters
-	void setHeader(const std::string& headerKey, const std::string& headerVal);
-	void setContentLenght(size_t lenght);
-	void setContent(const std::string& content);
+	std::string getStringMessage() const;
 };
 
 std::ostream& operator<<(std::ostream& os, const HttpRequest& other);

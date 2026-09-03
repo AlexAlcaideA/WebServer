@@ -1,12 +1,12 @@
-#include "../include/HttpRequest.hpp"
-#include "../include/utils/StringUtils.hpp"
+#include "../../include/httpMessage/HttpRequest.hpp"
+#include "../../include/utils/StringUtils.hpp"
 
 HttpRequest::HttpRequest()
-	: _method(Http::UNKNOWN), _contentLenght(0), _content(NULL)
+	: HttpMessage(), _method(Http::UNKNOWN)
 {}
 
 HttpRequest::HttpRequest(const std::string& text)
-	: _contentLenght(0), _content(NULL)
+	: HttpMessage()
 {
 	size_t lineEnd = text.find("\r\n");
 	std::string requestLine = (lineEnd != std::string::npos) ? text.substr(0, lineEnd) : text;
@@ -68,23 +68,23 @@ HttpRequest::HttpRequest(const std::string& text)
 		if (bodyStart < text.size())
 		{
 			std::string body = text.substr(bodyStart);
-			std::cout << "Body request:\n" << body << std::endl;
+			std::cout << "Body request:\n" << body << std::endl; // TMP
 			// TMP Procesar body según Content-Type y Content-Length
 		}
 	}
 }
 
 HttpRequest::HttpRequest(Http::Method method, const std::string& requestTarget, const std::string& httpVersion)
-	: _method(method), _requestTarget(requestTarget), _httpVersion(httpVersion), _contentLenght(0), _content(NULL)
+	: HttpMessage(httpVersion), _method(method), _requestTarget(requestTarget)
 {}
 
 HttpRequest::HttpRequest(Http::Method method, const std::string& requestTarget, const std::string& httpVersion,
 	const std::map<std::string, std::string>& map, size_t contentLenght, const std::string& content)
-		: _method(method), _requestTarget(requestTarget), _httpVersion(httpVersion),
-			_headers(map), _contentLenght(contentLenght), _content(new std::string(content))
+		: HttpMessage(httpVersion, map, contentLenght, content), _method(method), _requestTarget(requestTarget)
 {}
 
 HttpRequest::HttpRequest(const HttpRequest& other)
+	: HttpMessage(other)
 {
 	*this = other;
 }
@@ -93,23 +93,15 @@ HttpRequest& HttpRequest::operator=(const HttpRequest& other)
 {
 	if (this != &other)
 	{
+		HttpMessage::operator=(other);
 		_method = other._method;
 		_requestTarget = other._requestTarget;
-		_httpVersion = other._httpVersion;
-		_headers = other._headers;
-		_contentLenght = other._contentLenght;
-		if (_content)
-			delete _content;
-		_content = new std::string(*(other._content));
 	}
 	return *this;
 }
 
 HttpRequest::~HttpRequest()
-{
-	if (_content)
-		delete _content;
-}
+{}
 
 Http::Method HttpRequest::getMethod() const
 {
@@ -121,54 +113,7 @@ const std::string& HttpRequest::getRequestTarget() const
 	return _requestTarget;
 }
 
-const std::string& HttpRequest::getHttpVersion() const
-{
-	return _httpVersion;
-}
-
-const std::map<std::string, std::string>& HttpRequest::getHeaders() const
-{
-	return _headers;
-}
-
-const std::string* HttpRequest::getHeader(const std::string& key) const
-{
-	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
-	if (it == _headers.end())
-		return NULL;
-	return &(it->second);
-}
-
-const std::string* HttpRequest::getHeader(const HttpHeaders::Headers& header) const
-{
-	std::string key;
-	try
-	{
-		key = HttpHeaders::HeadersToString(header);
-	}
-	catch(const std::exception& e)
-	{
-		std::cerr << e.what() << '\n';
-		return NULL;
-	}
-	
-	std::map<std::string, std::string>::const_iterator it = _headers.find(key);
-	if (it == _headers.end())
-		return NULL;
-	return &(it->second);
-}
-
-size_t HttpRequest::getContentLenght() const
-{
-	return _contentLenght;
-}
-
-const std::string* HttpRequest::getContent() const
-{
-	return _content;
-}
-
-std::string HttpRequest::getStringRequest() const
+std::string HttpRequest::getStringMessage() const
 {
 	std::ostringstream oss;
 
@@ -193,25 +138,8 @@ std::string HttpRequest::getStringRequest() const
 	return oss.str();
 }
 
-void HttpRequest::setHeader(const std::string& headerKey, const std::string& headerVal)
-{
-	_headers[headerKey] = headerVal;
-}
-
-void HttpRequest::setContentLenght(size_t lenght)
-{
-	_contentLenght = lenght;
-}
-
-void HttpRequest::setContent(const std::string& content)
-{
-	if (_content)
-		delete _content;
-	_content = new std::string(content);
-}
-
 std::ostream& operator<<(std::ostream& os, const HttpRequest& other)
 {
-	os << other.getStringRequest();
+	os << other.getStringMessage();
 	return os;
 }

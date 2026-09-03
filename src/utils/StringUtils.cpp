@@ -2,6 +2,7 @@
 #include <sstream>
 #include <cmath>
 #include <cerrno>
+#include <fstream>
 
 namespace utils
 {
@@ -74,6 +75,16 @@ namespace utils
 
 		result = static_cast<size_t>(value * multiplier);
 		return true;
+	}
+
+	std::string fileToString(const std::string& fileName)
+	{
+		std::ifstream file(fileName.c_str());
+		if (!file.is_open())
+			return "";
+		std::ostringstream ss;
+		ss << file.rdbuf();
+		return ss.str();
 	}
 
 	std::string unsignedLongLongToString(const unsigned long long& num)

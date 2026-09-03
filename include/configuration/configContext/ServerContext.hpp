@@ -26,6 +26,9 @@ class ServerContext : public ConfigContext
 		std::set<std::string>* _serverName;					// Multiple,	No Duplicates,	Optional,		Default: ""
 		std::map<std::string, LocationContext>* _location;	// Multiple,	No duplicates,	Optional,		Default: /
 		std::map<std::string, std::string>* _cgiHandlers;	// Multiple,	No duplicates,	Optional,		Default: -
+
+		bool isValidIPv4(const std::string& ip);
+		bool isValidPort(unsigned int port);
 	public:
 		ServerContext();
 		ServerContext(const ServerContext& other);

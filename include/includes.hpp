@@ -12,6 +12,9 @@
 #include <unistd.h>
 #include <poll.h>
 #include <fcntl.h>
+#include <csignal>
+
+#include <algorithm>
 
 #include <vector>
 #include <set>
@@ -21,10 +24,12 @@
 //Propios
 #include "utils/HttpMethod.hpp"
 #include "utils/HttpHeaders.hpp"
+#include "utils/HttpStatus.hpp"
+#include "utils/StringUtils.hpp"
 
 #include "defines.h"
-#include "client.hpp"
-#include "server.hpp"
 #include "defaultresponse.hpp"
+
+extern volatile sig_atomic_t g_running;
 
 #endif

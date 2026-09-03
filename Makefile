@@ -15,19 +15,24 @@ OBJDIR        = obj
 # Módulos / subdirectorios (fuentes explícitas)
 # -------------------------------------------------
 # Archivos sin subdirectorio
-SRCS_MAIN     = main.cpp configuration/Configuration.cpp HttpRequest.cpp client.cpp server.cpp
+SRCS_MAIN     = main.cpp configuration/Configuration.cpp client.cpp server.cpp
 
-# Archivos en src/configContext/
+# Archivos en src/configuration/configContext/
 CONFCONTEXT_DIR  = configuration/configContext
 CONFCONTEXT_SRCS = ConfigContext.cpp LocationContext.cpp ServerContext.cpp GlobalContext.cpp
 
+# Archivos en src/httpMessage/
+HTTPMESSAGE_DIR = httpMessage
+HTTPMESSAGE_SRCS = HttpMessage.cpp HttpRequest.cpp HttpResponse.cpp
+
 # Archivos en src/utils/
 UTILS_DIR        = utils
-UTILS_SRCS       = StringUtils.cpp HttpHeaders.cpp HttpMethod.cpp
+UTILS_SRCS       = StringUtils.cpp HttpHeaders.cpp HttpMethod.cpp HttpStatus.cpp
 
 # Concatenamos todas las fuentes con sus rutas relativas a src/
 SRCS = $(SRCS_MAIN) \
        $(addprefix $(CONFCONTEXT_DIR)/, $(CONFCONTEXT_SRCS)) \
+	   $(addprefix $(HTTPMESSAGE_DIR)/, $(HTTPMESSAGE_SRCS)) \
 	   $(addprefix $(UTILS_DIR)/, $(UTILS_SRCS))
 
 # -------------------------------------------------

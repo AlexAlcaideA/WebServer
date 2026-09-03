@@ -194,12 +194,19 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 		// The last element is the port
 		if (!utils::stringToUnsignedInt(args[args.size()-1], port))
 			throw std::invalid_argument("invalid port: " + args[args.size()-1]);
-		if (args.size() == 2) // only port
-			server->SetListen(port);
-		else if (args.size() == 3) // IP and port
-			server->SetListen(args[1], port);
-		else
-			throw std::invalid_argument("listen takes 1 or 2 arguments");
+		try
+		{
+			if (args.size() == 2) // only port
+				server->SetListen(port);
+			else if (args.size() == 3) // IP and port
+				server->SetListen(args[1], port);
+			else
+				throw std::invalid_argument("listen takes 1 or 2 arguments");
+		}
+		catch(const std::exception& e)
+		{
+			throw std::invalid_argument(e.what());
+		}		
 	}
 	else if (directive == "server_name")
 	{
@@ -569,6 +576,9 @@ Http::Method Configuration::GetMethod(const std::string& arg)
 		return Http::DELETE;
 	throw std::invalid_argument("Method couldn't be found");
 }
+
+Configuration::Configuration()
+{}
 
 Configuration::Configuration(std::string confPath) : _confPath(confPath)
 {

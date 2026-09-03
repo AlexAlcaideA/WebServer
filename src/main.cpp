@@ -1,9 +1,20 @@
-#include "../include/configuration/Configuration.hpp"
-#include "../include/HttpRequest.hpp"
 #include "includes.hpp"
+#include "configuration/Configuration.hpp"
+#include "server.hpp"
+
+volatile sig_atomic_t g_running = 1;
+
+void handleSignal(int signum)
+{
+    (void)signum;
+    g_running = 0;
+}
 
 int main(int argc, char **argv)
 {
+	signal(SIGINT, handleSignal);
+    signal(SIGTERM, handleSignal);
+
 	std::string confRoot;
 	if (argc < 2)
 	{
@@ -35,9 +46,11 @@ int main(int argc, char **argv)
 		"Accept-Language: en-US,en;q=0.9\r\n"
 		"\r\n";  // línea vacía final que marca el fin de las cabeceras
 
+	Configuration conf;
 	try
 	{
-		Configuration conf(confRoot);
+		Configuration tmp(confRoot);
+		conf = tmp;
 		std::cout << conf << std::endl;
 	}
 	catch (const std::exception& e)
@@ -59,7 +72,7 @@ int main(int argc, char **argv)
 
 	try
 	{
-		server srv(8080);
+		server srv(conf);
 		srv.run();
 	}
 	catch (const std::exception &e)

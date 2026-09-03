@@ -3,6 +3,7 @@
 # define BUFF_SIZE 4242
 # define MAX_URI_LENGTH 4096
 # define MAX_CONTENT_LENGTH 30000000
+# define TIME_OUT 1000
 enum methods
 {
 	BASELINECONTROL,

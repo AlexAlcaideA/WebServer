@@ -14,7 +14,7 @@ GlobalContext& GlobalContext::operator=(const GlobalContext& other)
 {
 	if (this != &other)
 	{
-		GlobalContext::operator=(other);
+		ConfigContext::operator=(other);
 		delete _server;
 		other._server == NULL ? _server = NULL : _server = new std::vector<ServerContext>(*other._server);
 	}
