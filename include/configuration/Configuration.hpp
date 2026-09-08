@@ -45,6 +45,7 @@ class Configuration
 		~Configuration();
 
 		const GlobalContext& GetConf() const;
+		const ServerContext* GetServer(const std::string& ip, unsigned int port) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const Configuration& other);

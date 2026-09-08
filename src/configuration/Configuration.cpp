@@ -613,6 +613,11 @@ const GlobalContext& Configuration::GetConf() const
 	return _globalBlock;
 }
 
+const ServerContext* Configuration::GetServer(const std::string& ip, unsigned int port) const
+{
+	return _globalBlock.GetServer(ip, port);
+}
+
 std::ostream& operator<<(std::ostream& os, const Configuration& other)
 {
 	os << other.GetConf();

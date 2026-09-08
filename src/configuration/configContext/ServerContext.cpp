@@ -187,6 +187,16 @@ const LocationContext* ServerContext::GetLocation(size_t index) const
 	return &(it->second);
 }
 
+const LocationContext* ServerContext::GetLocation(const std::string& path) const
+{
+	if (!_location)
+		return NULL;
+	std::map<std::string, LocationContext>::const_iterator it = _location->find(path);
+	if (it != _location->end())
+		return &(it->second);
+	return NULL;
+}
+
 LocationContext& ServerContext::GetLocation(size_t index)
 {
 	std::map<std::string, LocationContext>::iterator it = _location->begin();
@@ -223,6 +233,29 @@ const std::string* ServerContext::GetCgiHandler(const std::string& extension) co
 		return NULL;
 	std::map<std::string, std::string>::const_iterator it = _cgiHandlers->find(extension);
 	return (it != _cgiHandlers->end()) ? &it->second : NULL;
+}
+
+bool ServerContext::checkServerNames(const std::string& name) const
+{
+	if (!_serverName)
+		return NULL;
+	return _serverName->find(name) != _serverName->end();
+}
+
+bool ServerContext::hasListen(const std::string& ip, unsigned int port, bool exactOnly) const
+{
+	if (!_listen)
+		return false;
+	for (std::set<ServerListen>::const_iterator it = _listen->begin(); it != _listen->end(); ++it)
+	{
+		if (it->port != port)
+			continue;
+		if (it->serverIp == ip)
+            return true;
+		if (!exactOnly && it->serverIp == "0.0.0.0")
+			return true;
+	}
+	return false;
 }
 
 std::ostream& operator<<(std::ostream& os, const ServerContext& other)

@@ -157,6 +157,27 @@ const LocationContext::ReturnVal* LocationContext::GetReturnVal() const
 	return _returnVal;
 }
 
+bool LocationContext::GetIndexPath(const std::string& requestPath, std::string& outFullPath) const
+{
+	if (!_index || !_root)
+		return false;
+
+	std::string dirPath = requestPath;
+	if (dirPath.empty() || dirPath[dirPath.size()-1] != '/')
+		dirPath += '/';
+
+	for (size_t i = 0; i < _index->size(); ++i)
+	{
+		std::string candidate = utils::joinPath(*_root, dirPath + (*_index)[i]);
+		if (utils::fileExists(candidate))
+		{
+			outFullPath = candidate;
+			return true;
+		}
+	}
+	return false;
+}
+
 std::ostream& operator<<(std::ostream& os, const LocationContext& other)
 {
 	other.print(os);

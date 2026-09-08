@@ -62,7 +62,7 @@ void	server::setupSocket()
 	}
 }
 // Constructor parametrizado
-server::server(int port = 8080)
+/*server::server(int port = 8080)
 	: server_fd(-1), port(port), _conf(NULL)
 {
 	std::memset(&address, 0, sizeof(address));
@@ -78,7 +78,7 @@ server::server(int port = 8080)
 	pfd.revents = 0;
 	poll_fds.push_back(pfd);
 	std::cout << "Server listening on port " << port << std::endl;
-}
+}*/
 
 bool setAddress(const std::string& ip, unsigned short port, sockaddr_in& addr)
 {
@@ -173,6 +173,10 @@ server::server(const Configuration& conf)
 	}
 	if (_listenSockets.empty())
 		throw std::runtime_error("No listen directives found");
+	std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl;
+	for (size_t i = 0; i < _listenSockets.size(); ++i)
+		std::cout << "Listen fd " << _listenSockets[i] << std::endl;
+	std::cout << "poll_fds size: " << poll_fds.size() << std::endl;
 }
 
 void server::acceptClient()
@@ -200,22 +204,49 @@ void server::acceptClient()
 	poll_fds.push_back(pfd);
 }
 
-HttpResponse server::methodGet(const HttpRequest& req)
+HttpResponse server::methodGet(const HttpRequest& req, const client& currentClient)
 {
-	if (req.getRequestTarget() == "/")
-	{
-		std::string content = utils::fileToString("www/Pages/helloWebserver.html");
-		std::map<std::string, std::string> map;
-		map["Content-Type"] = "text/html";
-		map["Content-Lenght"] = content.size();
-		HttpResponse response("HTTP/1.1", map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
-		std::string answer = response.getStringMessage();
-		std::cout << answer << std::endl;
-
-		return response;
-	}
 	std::map<std::string, std::string> map;
-	return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+	const std::string* host = req.getHeader(HttpHeaders::HOST);
+	std::cout << "Hola 1" << std::endl;
+	if (!host) // Check for Header "Host"
+		return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500)); // TMP Cambiar por pagina y error correcto
+	ServerContext::ServerListen clientListen = currentClient.GetListener();
+	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
+	std::cout << "Host: " << *host << " HostName: " << utils::extractHostname(*host) << std::endl;
+	std::cout << "Hola 2" << std::endl;
+	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one
+	{
+		std::cerr << "Server vacio." << std::endl;
+		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	}
+	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
+	std::cout << "Request Target: " << req.getRequestTarget() << std::endl;
+	std::cout << "Hola 3" << std::endl;
+	if (!loc) // Search for LocationContext with the same path
+		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	std::string rootPath;
+	std::cout << "RootPath is: " << rootPath << std::endl;
+	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
+		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	std::string content = utils::fileToString(rootPath);
+	map["Content-Type"] = "text/html";
+	map["Content-Lenght"] = content.size();
+	HttpResponse response("HTTP/1.1", map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
+	std::string answer = response.getStringMessage();
+	std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
+
+	/*std::string content = utils::fileToString("www/Pages/helloWebserver.html");
+	std::map<std::string, std::string> map;
+	map["Content-Type"] = "text/html";
+	map["Content-Lenght"] = content.size();
+	HttpResponse response("HTTP/1.1", map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
+	std::string answer = response.getStringMessage();
+	std::cout << answer << std::endl;*/
+
+	return response;
+
+	//return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
 }
 
 HttpResponse methodPost(const HttpRequest& req)
@@ -223,6 +254,43 @@ HttpResponse methodPost(const HttpRequest& req)
 	(void)req;
 	std::map<std::string, std::string> map;
 	return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+}
+
+const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const
+{
+	const std::vector<ServerContext>* servers = _conf->GetConf().GetServers();
+	if (!servers)
+		return NULL;
+
+	// Primera pasada: buscar coincidencia exacta de IP y puerto
+	const ServerContext* exactDefault = NULL;
+	for (size_t i = 0; i < servers->size(); ++i)
+	{
+		const ServerContext& srv = (*servers)[i];
+		if (!srv.hasListen(ip, port, true)) // true = solo IP exacta
+			continue;
+		if (!exactDefault)
+			exactDefault = &srv;
+		if (srv.checkServerNames(name))
+			return &srv;
+	}
+
+	// Segunda pasada: buscar con 0.0.0.0 (si no hubo exacta)
+	if (!exactDefault)
+	{
+		for (size_t i = 0; i < servers->size(); ++i)
+		{
+			const ServerContext& srv = (*servers)[i];
+			if (!srv.hasListen(ip, port, false)) // false = acepta 0.0.0.0
+				continue;
+			if (srv.checkServerNames(name))
+				return &srv;
+			if (!exactDefault) exactDefault = &srv; // primer fallback
+		}
+	}
+
+	// Si no hay coincidencia de nombre, devolver el default encontrado
+	return exactDefault;
 }
 
 void server::handleClient(int fd)
@@ -244,20 +312,20 @@ void server::handleClient(int fd)
     std::cout << request << std::endl;
 
     HttpResponse response;
-    switch (request.getMethod())
+	switch (request.getMethod())
 	{
-        case Http::GET:
-			response = methodGet(request);
+		case Http::GET:
+			response = methodGet(request, *cli);
 			break;
-        case Http::POST:
+		case Http::POST:
 			response = methodPost(request);
 			break;
-        case Http::DELETE:
+		case Http::DELETE:
 			/* ... */
 			break;
-        default:
+		default:
 			break;
-    }
+	}
 
     std::string answer = response.getStringMessage();
     // Enviar todo el string (manejar envío parcial)
@@ -319,6 +387,20 @@ void server::removeClientByFd(int fd)
     close(fd);
 }
 
+std::pair<std::string, unsigned short> server::getLocalAddressInfo(int clientFd)
+{
+	struct sockaddr_in localAddr;
+	socklen_t localLen = sizeof(localAddr);
+	if (getsockname(clientFd, (struct sockaddr*)&localAddr, &localLen) == 0)
+	{
+		std::string ip = utils::ipToString(localAddr.sin_addr.s_addr);
+		unsigned short port = ntohs(localAddr.sin_port);
+		return std::make_pair(ip, port);
+	}
+	// Manejo de error
+	return std::make_pair("", 0);
+}
+
 void server::run()
 {
 	/*while (g_running)
@@ -364,26 +446,36 @@ void server::run()
 				if (isListenSocket(fd))
 				{
 					std::cout << "Listen socket" << std::endl;
-					struct sockaddr_in client_addr;
-					socklen_t client_len = sizeof(client_addr);
-					int client_fd = accept(fd, (struct sockaddr*)&client_addr, &client_len);
-					if (client_fd != -1)
+					struct sockaddr_in clientAddr;
+					socklen_t clientLen = sizeof(clientAddr);
+					int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &clientLen);
+					if (clientFd != -1)
 					{
 						std::cout << "Llega nuevo cliente!" << std::endl;
 						// Configurar non-blocking
-						int flags = fcntl(client_fd, F_GETFL, 0);
+						int flags = fcntl(clientFd, F_GETFL, 0);
 						if (flags == -1)
 							throw std::runtime_error("fcntl F_GETFL failed");
-						if (fcntl(client_fd, F_SETFL, flags | O_NONBLOCK) == -1)
+						if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
 							throw std::runtime_error("fcntl F_SETFL failed");
+						std::cout << "New client: " << clientFd << std::endl;
 
-						std::cout << "New client: " << client_fd << std::endl;
+						client* newClient = new client(clientFd);
 
-						client* new_client = new client(client_fd);
-						clients.push_back(new_client);
+						std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
+
+						newClient->AddListener(localAddr.first, localAddr.second);
+						// Mostrar información de depuración
+						std::cout << "Server local address: " << localAddr.first << ":" << localAddr.second << std::endl;
+
+						// También puedes mostrar la dirección remota si la necesitas
+						std::cout << "Client remote address: " << utils::ipToString(clientAddr.sin_addr.s_addr)
+							<< ":" << ntohs(clientAddr.sin_port) << std::endl;
+
+						clients.push_back(newClient);
 
 						struct pollfd pfd;
-						pfd.fd = client_fd;
+						pfd.fd = clientFd;
 						pfd.events = POLLIN | POLLHUP | POLLERR;
 						pfd.revents = 0;
 						new_poll_fds.push_back(pfd);
@@ -395,7 +487,8 @@ void server::run()
 					int fd = poll_fds[i].fd;
 					// Buscar el cliente por fd
 					client* cli = findClientByFd(fd);
-					if (cli) {
+					if (cli)
+					{
 						if (poll_fds[i].revents & (POLLHUP | POLLERR))
 							removeClientByFd(fd);
 						else if (poll_fds[i].revents & POLLIN)
@@ -416,6 +509,7 @@ void server::run()
 	}
 
 }
+
 void server::removeClient(unsigned long i)
 {
 	close(poll_fds[i].fd);

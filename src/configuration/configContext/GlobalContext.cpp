@@ -51,6 +51,49 @@ const ServerContext* GlobalContext::GetServer(size_t index) const
 	return &((*_server)[index]);
 }
 
+const ServerContext* GlobalContext::GetServer(const std::string& ip, unsigned int port) const
+{
+	if (!_server)
+		return NULL;
+	std:: cout << "Get server ip: " << ip << " port: " << utils::unsignedLongToString(port) << std::endl;
+	// Prepare keys
+	ServerContext::ServerListen exactKey;
+	exactKey.serverIp = ip;
+	exactKey.port = port;
+
+	ServerContext::ServerListen fallbackKey;
+	fallbackKey.serverIp = "0.0.0.0";
+	fallbackKey.port = port;
+
+	// Exact IP
+	for (size_t i = 0; i < _server->size(); ++i)
+	{
+		const ServerContext& server = (*_server)[i];
+		const std::set<ServerContext::ServerListen>* listens = server.GetListens();
+		if (listens)
+		{
+			std::set<ServerContext::ServerListen>::const_iterator it = listens->find(exactKey);
+			if (it != listens->end())
+				return &server;
+		}
+	}
+
+	// IP 0.0.0.0
+	for (size_t i = 0; i < _server->size(); ++i)
+	{
+		const ServerContext& server = (*_server)[i];
+		const std::set<ServerContext::ServerListen>* listens = server.GetListens();
+		if (listens)
+		{
+			std::set<ServerContext::ServerListen>::const_iterator it = listens->find(fallbackKey);
+			if (it != listens->end())
+				return &server;
+		}
+	}
+
+	return NULL; // No server
+}
+
 ServerContext& GlobalContext::GetServer(size_t index)
 {
 	return (*_server)[index];

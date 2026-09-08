@@ -48,11 +48,15 @@ class ServerContext : public ConfigContext
 		const std::map<std::string, LocationContext>* GetLocations() const;
 		size_t GetLocationsSize() const;
 		const LocationContext* GetLocation(size_t index) const;
+		const LocationContext* GetLocation(const std::string& path) const;
 		LocationContext& GetLocation(size_t index);
 		LocationContext* GetLastLocation();
 		const LocationContext* GetLastLocation() const;
 		const std::map<std::string, std::string>* GetCgiHandlers() const;
 		const std::string* GetCgiHandler(const std::string& extension) const;
+
+		bool checkServerNames(const std::string& name) const;
+		bool hasListen(const std::string& ip, unsigned int port, bool exactOnly = false) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const ServerContext& other);

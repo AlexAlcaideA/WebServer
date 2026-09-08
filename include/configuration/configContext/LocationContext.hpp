@@ -38,6 +38,8 @@ class LocationContext : public ConfigContext
 		const Http::Method* GetLimitExcept(size_t index) const;
 		const std::string* GetUploadStore() const;
 		const ReturnVal* GetReturnVal() const;
+
+		bool GetIndexPath(const std::string& requestPath, std::string& outFullPath) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const LocationContext& other);

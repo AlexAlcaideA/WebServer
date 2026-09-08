@@ -21,17 +21,20 @@ class server
 		std::vector<int> _listenSockets;
 		std::vector<client*>	clients;
 
-		void			setupSocket();
-		void			acceptClient();
-		HttpResponse	methodGet(const HttpRequest& req);
-		void			handleClient(int fd);
-		void			removeClient(size_t i);
-		int				get_server_fd(void) const;
-		bool			isListenSocket(int fd) const;
-		client*			findClientByFd(int fd);
-		void			removeClientByFd(int fd);
+		void									setupSocket();
+		void									acceptClient();
+		HttpResponse							methodGet(const HttpRequest& req, const client& currentClient);
+		const ServerContext*					getServerByName(const std::string& name,
+													const std::string& ip, unsigned int port) const;
+		void									handleClient(int fd);
+		void									removeClient(size_t i);
+		int										get_server_fd(void) const;
+		bool									isListenSocket(int fd) const;
+		client*									findClientByFd(int fd);
+		void									removeClientByFd(int fd);
+		std::pair<std::string, unsigned short>	getLocalAddressInfo(int clientFd);
 	public:
-		server(int port);
+		//server(int port);
 		server(const Configuration& conf);
 		~server();
 		server& operator=(const server&);

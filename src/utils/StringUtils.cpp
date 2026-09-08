@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cerrno>
 #include <fstream>
+#include <arpa/inet.h>
+#include <sys/stat.h>
 
 namespace utils
 {
@@ -101,6 +103,47 @@ namespace utils
 		oss << num;
 		std::string str = oss.str();
 		return str;
+	}
+
+	std::string ipToString(const uint32_t& ipAddr)
+	{
+		uint32_t ip_host = ntohl(ipAddr);
+		std::ostringstream oss;
+		oss << ((ip_host >> 24) & 0xFF) << '.'
+			<< ((ip_host >> 16) & 0xFF) << '.'
+			<< ((ip_host >> 8) & 0xFF) << '.'
+			<< (ip_host & 0xFF);
+		return oss.str();
+	}
+
+	std::string extractHostname(const std::string& hostHeader)
+	{
+		size_t colonPos = hostHeader.find(':');
+		if (colonPos != std::string::npos)
+			return hostHeader.substr(0, colonPos);
+		return hostHeader;
+	}
+
+	std::string joinPath(const std::string& a, const std::string& b)
+	{
+		if (a.empty())
+			return b;
+		if (b.empty())
+			return a;
+		std::string result = a;
+		if (result[result.size()-1] != '/')
+			result += '/';
+		if (b[0] == '/')
+			result += b.substr(1);
+		else
+			result += b;
+		return result;
+	}
+
+	bool fileExists(const std::string& path)
+	{
+		struct stat buffer;
+		return (stat(path.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode));
 	}
 
 }

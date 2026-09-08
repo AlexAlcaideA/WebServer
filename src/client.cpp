@@ -1,7 +1,7 @@
 #include "client.hpp"
 
 client::client(int fd)
-	: client_fd(fd), bytes(0), response(NULL)
+	: _client_fd(fd), bytes(0), response(NULL)
 {
 	std::memset(buffer, 0, sizeof(buffer));
 }
@@ -13,7 +13,7 @@ client::~client(void)
 */}
 int client::getFd() const
 {
-	return (client_fd);
+	return (_client_fd);
 }
 char	(*client::getBuffer())[BUFF_SIZE]
 {
@@ -24,7 +24,7 @@ bool client::receive()
 	
 	ssize_t	n;
 
-	n = recv(client_fd, buffer, sizeof(buffer) -1, 0);
+	n = recv(_client_fd, buffer, sizeof(buffer) -1, 0);
 
 	if (n == 0)
 	{
@@ -40,4 +40,20 @@ bool client::receive()
 	buffer[n] = '\0';
 
 	return (true);
+}
+
+const ServerContext::ServerListen& client::GetListener() const
+{
+	return _listener;
+}
+
+void client::AddListener(const std::string& ip, unsigned int port)
+{
+	_listener.serverIp = ip;
+	_listener.port = port;
+}
+
+void client::AddListener(unsigned int port)
+{
+	AddListener("0.0.0.0", port);
 }

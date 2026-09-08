@@ -16,6 +16,7 @@ class GlobalContext : public ConfigContext
 
 		const std::vector<ServerContext>* GetServers() const;
 		const ServerContext* GetServer(size_t index) const;
+		const ServerContext* GetServer(const std::string& ip, unsigned int port) const;
 		ServerContext& GetServer(size_t index);
 		ServerContext* GetLastServer();
 		const ServerContext* GetLastServer() const;
