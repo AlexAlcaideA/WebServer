@@ -225,6 +225,14 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::cout << "Hola 3" << std::endl;
 	if (!loc) // Search for LocationContext with the same path
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	if (!checkLocalMethods(Http::GET, *loc))
+		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
+	if (retVal) // Search if it has a Return Header
+	{
+		map["Location"] = utils::stripQuotes(*retVal->url);
+		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
+	}
 	std::string rootPath;
 	std::cout << "RootPath is: " << rootPath << std::endl;
 	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
@@ -328,11 +336,12 @@ void server::handleClient(int fd)
 	}
 
     std::string answer = response.getStringMessage();
+	std::cout << "Response:\n" << answer << std::endl;
     // Enviar todo el string (manejar envío parcial)
     size_t total = 0;
     while (total < answer.size())
 	{
-        ssize_t sent = send(fd, answer.data() + total, answer.size() - total, MSG_NOSIGNAL);
+        ssize_t sent = send(fd, answer.c_str() + total, answer.size() - total, MSG_NOSIGNAL);
         if (sent <= 0)
 		{
             removeClientByFd(fd);
@@ -399,6 +408,16 @@ std::pair<std::string, unsigned short> server::getLocalAddressInfo(int clientFd)
 	}
 	// Manejo de error
 	return std::make_pair("", 0);
+}
+
+bool server::checkLocalMethods(Http::Method method, const LocationContext& local)
+{
+	if (!local.GetLimitExcepts())
+		return false;
+	for (size_t i = 0; i < local.GetLimitExcepts()->size(); i++)
+		if (method == *(local.GetLimitExcept(i)))
+			return true;
+	return false;
 }
 
 void server::run()

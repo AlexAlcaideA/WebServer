@@ -4,12 +4,13 @@
 
 class LocationContext : public ConfigContext
 {
-	private:
+	public:
 		struct ReturnVal
 		{
 			unsigned int code;
 			std::string* url; // Is optional, can be NULL
 		};
+	private:
 		std::map<std::string, std::string>* _cgiHandlers;	// Multiple,	No duplicates,	Optional,		Default: -
 		std::vector<Http::Method>* _limitExcept;			// No multiple,	No duplicates,	Optional,		Default: GET POST
 		std::string* _uploadStore;							// No multiple,	No duplicates,	Optional,		Default: -

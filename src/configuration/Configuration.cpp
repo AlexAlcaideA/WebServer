@@ -300,7 +300,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
         std::string urlStr;
         if (args.size() >= 3)
 		{
-            urlStr = args[2];
+            urlStr = utils::stripQuotes(args[2]);
             urlPtr = &urlStr;
         }
         location->SetReturn(code, urlPtr);

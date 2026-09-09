@@ -33,6 +33,7 @@ class server
 		client*									findClientByFd(int fd);
 		void									removeClientByFd(int fd);
 		std::pair<std::string, unsigned short>	getLocalAddressInfo(int clientFd);
+		bool									checkLocalMethods(Http::Method method, const LocationContext& local);
 	public:
 		//server(int port);
 		server(const Configuration& conf);

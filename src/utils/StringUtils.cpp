@@ -146,4 +146,16 @@ namespace utils
 		return (stat(path.c_str(), &buffer) == 0 && S_ISREG(buffer.st_mode));
 	}
 
+	std::string stripQuotes(const std::string& str)
+	{
+		if (str.size() >= 2)
+		{
+			char first = str[0];
+			char last = str[str.size() - 1];
+			if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
+				return str.substr(1, str.size() - 2);
+    	}
+    	return str;
+	}
+
 }
