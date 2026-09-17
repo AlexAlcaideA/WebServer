@@ -281,12 +281,15 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
          	}
             methods.push_back(m);
         }
+		std::cout << location->GetPath() << " Error!" << std::endl;
         location->SetLimitExcept(methods);
     }
     else if (directive == "upload_store")
 	{
+		std::cout << "Leo bien" << std::endl;
         if (args.size() < 2)
 			throw std::invalid_argument("upload_store requires a path");
+		std::cout << "Paso el test de size" << std::endl;
         location->SetUploadStore(args[1]);
     }
     else if (directive == "return")
@@ -400,8 +403,7 @@ bool Configuration::Parse()
 
 				LocationContext newLoc(args[1]);
 
-				currentServer->AddLocation(newLoc);
-				currentLocation = currentServer->GetLastLocation();
+				currentLocation = currentServer->AddLocation(newLoc);
 				stateStack.push_back(LOCATION);
 			}
 			else

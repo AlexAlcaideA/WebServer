@@ -114,15 +114,15 @@ void ServerContext::AddServerName(const std::string& name)
 		throw std::invalid_argument("server_name duplicated: " + name);
 }
 
-void ServerContext::AddLocation(const LocationContext& location)
+LocationContext* ServerContext::AddLocation(const LocationContext& location)
 {
 	if (!_location)
 		_location = new std::map<std::string, LocationContext>();
 
 	std::pair<std::map<std::string, LocationContext>::iterator, bool> result
 		= _location->insert(std::make_pair(location.GetPath(), location));
-	if (!result.second)
-		throw std::invalid_argument("duplicate location: " + location.GetPath());
+
+	return &(result.first->second);
 }
 
 void ServerContext::SetCgiHandler(const std::string& ext, const std::string& interp)
@@ -187,14 +187,28 @@ const LocationContext* ServerContext::GetLocation(size_t index) const
 	return &(it->second);
 }
 
-const LocationContext* ServerContext::GetLocation(const std::string& path) const
+const LocationContext* ServerContext::GetLocation(const std::string& requestPath) const
 {
 	if (!_location)
 		return NULL;
-	std::map<std::string, LocationContext>::const_iterator it = _location->find(path);
-	if (it != _location->end())
-		return &(it->second);
-	return NULL;
+	const LocationContext* best = NULL;
+	size_t bestLen = 0;
+	for (std::map<std::string, LocationContext>::const_iterator it = _location->begin(); it != _location->end(); ++it)
+	{
+		const LocationContext& loc = (*it).second;
+		const std::string& locPath = loc.GetPath();
+		if (requestPath == locPath)
+			return &loc;
+		if (locPath.size() <= requestPath.size() && requestPath.compare(0, locPath.size(), locPath) == 0)
+		{
+			if (locPath.size() > bestLen)
+			{
+				best = &loc;
+				bestLen = locPath.size();
+			}
+		}
+	}
+	return best;
 }
 
 LocationContext& ServerContext::GetLocation(size_t index)

@@ -225,15 +225,17 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::cout << "Hola 3" << std::endl;
 	if (!loc) // Search for LocationContext with the same path
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl;
 	if (!checkLocalMethods(Http::GET, *loc))
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+	std::cout << "Method allowed" << std::endl;
 	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
 		map["Location"] = utils::stripQuotes(*retVal->url);
 		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
 	}
-	std::string rootPath;
+	std::string rootPath = *loc->GetRoot();
 	std::cout << "RootPath is: " << rootPath << std::endl;
 	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto

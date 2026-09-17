@@ -38,7 +38,7 @@ class ServerContext : public ConfigContext
 		void SetListen(const unsigned int& port);
 		void SetListen(const std::string& ip, const unsigned int& port);
 		void AddServerName(const std::string& name);
-		void AddLocation(const LocationContext& location);
+		LocationContext* AddLocation(const LocationContext& location);
 		void SetCgiHandler(const std::string& ext, const std::string& interp);
 
 		const std::set<ServerListen>* GetListens() const;
@@ -48,7 +48,7 @@ class ServerContext : public ConfigContext
 		const std::map<std::string, LocationContext>* GetLocations() const;
 		size_t GetLocationsSize() const;
 		const LocationContext* GetLocation(size_t index) const;
-		const LocationContext* GetLocation(const std::string& path) const;
+		const LocationContext* GetLocation(const std::string& requestPath) const;
 		LocationContext& GetLocation(size_t index);
 		LocationContext* GetLastLocation();
 		const LocationContext* GetLastLocation() const;

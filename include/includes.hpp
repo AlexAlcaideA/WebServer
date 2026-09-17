@@ -7,6 +7,7 @@
 #include <string>
 #include <cstring>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <unistd.h>

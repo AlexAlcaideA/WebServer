@@ -1,4 +1,5 @@
 #include "../../../include/configuration/configContext/LocationContext.hpp"
+#include <iostream>
 
 LocationContext::LocationContext()
 	: ConfigContext(),
@@ -96,7 +97,11 @@ void LocationContext::SetLimitExcept(const std::vector<Http::Method>& methods)
 void LocationContext::SetUploadStore(const std::string& path)
 {
     if (_uploadStore)
+	{
         throw std::invalid_argument("upload_store directive duplicated");
+	}
+	
+	std::cout << "Guardado Upload" << std::endl;
     _uploadStore = new std::string(path);
 }
 
@@ -162,6 +167,38 @@ bool LocationContext::GetIndexPath(const std::string& requestPath, std::string& 
 	if (!_index || !_root)
 		return false;
 
+	std::string basePath = utils::joinPath(*_root, requestPath);
+	struct stat st;
+	if (stat(basePath.c_str(), &st) == 0)
+	{
+		// Checks if the path is a file
+		if (S_ISREG(st.st_mode))
+		{
+			outFullPath = basePath;
+			return true;
+		}
+		// Checks if the path is a directory
+		if (S_ISDIR(st.st_mode))
+		{
+			std::string dirPath = basePath;
+			if (dirPath.empty() || dirPath[dirPath.size()-1] != '/')
+				dirPath += '/';
+
+			for (size_t i = 0; i < _index->size(); ++i)
+			{
+				std::string candidate = dirPath + (*_index)[i];
+				if (utils::fileExists(candidate))  // stat + S_ISREG
+				{
+					outFullPath = candidate;
+					return true;
+				}
+			}
+			// There is no index
+			return false;
+		}
+		// Doesn't exist
+		return false;
+	}
 	std::string dirPath = requestPath;
 	if (dirPath.empty() || dirPath[dirPath.size()-1] != '/')
 		dirPath += '/';
@@ -169,6 +206,7 @@ bool LocationContext::GetIndexPath(const std::string& requestPath, std::string& 
 	for (size_t i = 0; i < _index->size(); ++i)
 	{
 		std::string candidate = utils::joinPath(*_root, dirPath + (*_index)[i]);
+		std::cout << "Path to check: " << candidate << std::endl;
 		if (utils::fileExists(candidate))
 		{
 			outFullPath = candidate;
