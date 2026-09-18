@@ -263,6 +263,7 @@ HttpResponse methodPost(const HttpRequest& req)
 {
 	(void)req;
 	std::map<std::string, std::string> map;
+	std::cout << "POST Method!" << std::endl;
 	return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
 }
 
@@ -318,8 +319,8 @@ void server::handleClient(int fd)
     // Asegurar terminador nulo en el buffer (si no lo hace receive)
     // ...
 
-    HttpRequest request(*cli->getBuffer());
-    std::cout << request << std::endl;
+    HttpRequest request(cli->getRawData());
+    std::cout << "Request text:\n" << request << std::endl;
 
     HttpResponse response;
 	switch (request.getMethod())
@@ -378,18 +379,20 @@ client* server::findClientByFd(int fd)
 
 void server::removeClientByFd(int fd)
 {
-    // Eliminar de poll_fds
+    // Delete from poll_fds
     for (size_t i = 0; i < poll_fds.size(); ++i)
 	{
-        if (poll_fds[i].fd == fd) {
+        if (poll_fds[i].fd == fd)
+		{
             poll_fds.erase(poll_fds.begin() + i);
             break;
         }
     }
-    // Eliminar de clients
+    // Delete from clients
     for (size_t i = 0; i < clients.size(); ++i)
 	{
-        if (clients[i]->getFd() == fd) {
+        if (clients[i]->getFd() == fd)
+		{
             delete clients[i];
             clients.erase(clients.begin() + i);
             break;

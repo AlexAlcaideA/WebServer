@@ -10,7 +10,8 @@ class client
 {
 	private:
 		int							_client_fd;
-		char						buffer[BUFF_SIZE];
+		
+		std::string					_rawData;
 		size_t						bytes;
 		httpresponse				*response;
 		ServerContext::ServerListen _listener;
@@ -21,7 +22,7 @@ class client
 
 		int	getFd() const;
 		bool		receive();
-		char (*getBuffer())[BUFF_SIZE];
+		const std::string&	getRawData() const;
 		size_t	getBytes() const;
 		const ServerContext::ServerListen& GetListener() const;
 		void	AddListener(const std::string& ip, unsigned int port);

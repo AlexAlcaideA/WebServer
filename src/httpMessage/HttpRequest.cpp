@@ -52,7 +52,7 @@ HttpRequest::HttpRequest(const std::string& text)
 				else
 					value = "";
 
-				if (name == "Content-Lenght")
+				if (name == "Content-Length")
 				{
 					if (!utils::stringToUnsignedLong(value, _contentLenght))
 						std::cerr << "Incorrect number for Content-Lenght: " << value << std::endl;
@@ -67,7 +67,8 @@ HttpRequest::HttpRequest(const std::string& text)
 		size_t bodyStart = headersEnd + 4;
 		if (bodyStart < text.size())
 		{
-			std::string body = text.substr(bodyStart);
+			std::string body = text.substr(bodyStart, _contentLenght);
+			std::cout << "Body size: " << body.size() << " (Content-Length: " << _contentLenght << ")" << std::endl;
 			std::cout << "Body request:\n" << body << std::endl; // TMP
 			// TMP Procesar body según Content-Type y Content-Length
 		}
