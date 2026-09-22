@@ -10,6 +10,7 @@ class HttpMessage
 		std::map<std::string, std::string> _headers;
 		size_t _contentLenght;
 		std::string* _content;
+		std::map<std::string, std::string>* _contentHeaders;
 
 	public:
 		// Constructor por defecto
@@ -19,6 +20,8 @@ class HttpMessage
 		HttpMessage(const std::string& httpVersion,	const std::map<std::string, std::string>& map);
 		HttpMessage(const std::string& httpVersion,	const std::map<std::string, std::string>& map,
 			size_t contentLenght, const std::string& content);
+		HttpMessage(const std::string& httpVersion, const std::map<std::string, std::string>& map,
+			size_t contentLenght, const std::string& content, const std::map<std::string, std::string>& contentHeaders);
 		HttpMessage(const HttpMessage& other);
 		// Operadores
 		HttpMessage& operator=(const HttpMessage& other);
@@ -31,9 +34,11 @@ class HttpMessage
 		virtual const std::string* getHeader(const HttpHeaders::Headers& header) const;
 		virtual size_t getContentLenght() const;
 		virtual const std::string* getContent() const;
+		virtual const std::map<std::string, std::string>* getContentHeaders() const;
 		virtual std::string getStringMessage() const = 0;
 		// Setters
 		virtual void setHeader(const std::string& headerKey, const std::string& headerVal);
 		virtual void setContentLenght(size_t lenght);
 		virtual void setContent(const std::string& content);
+		virtual void setContentHeader(const std::string& headerKey, const std::string& headerVal);
 };

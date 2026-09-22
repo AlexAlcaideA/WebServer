@@ -27,7 +27,7 @@ HTTPMESSAGE_SRCS = HttpMessage.cpp HttpRequest.cpp HttpResponse.cpp
 
 # Archivos en src/utils/
 UTILS_DIR        = utils
-UTILS_SRCS       = StringUtils.cpp HttpHeaders.cpp HttpMethod.cpp HttpStatus.cpp
+UTILS_SRCS       = StringUtils.cpp HttpHeaders.cpp HttpMethod.cpp HttpStatus.cpp FormPart.cpp
 
 # Concatenamos todas las fuentes con sus rutas relativas a src/
 SRCS = $(SRCS_MAIN) \

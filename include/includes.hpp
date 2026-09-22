@@ -27,6 +27,7 @@
 #include "utils/HttpHeaders.hpp"
 #include "utils/HttpStatus.hpp"
 #include "utils/StringUtils.hpp"
+#include "utils/FormPart.hpp"
 
 #include "defines.h"
 #include "defaultresponse.hpp"

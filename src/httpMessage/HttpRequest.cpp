@@ -65,13 +65,54 @@ HttpRequest::HttpRequest(const std::string& text)
 			return;
 		// Message body only POST currently
 		size_t bodyStart = headersEnd + 4;
-		if (bodyStart < text.size())
+		if (bodyStart >= text.size())
+			return;
+		// Extract boundary from body
+		const std::string* ctype = this->getHeader(HttpHeaders::CONTENT_TYPE);
+		if (!ctype)
+			return;
+		std::string boundary = utils::extractBoundary(*ctype);
+		if (boundary.empty())
+			return;
+		std::string body = text.substr(bodyStart, _contentLenght);
+		// Find start of boundary
+		std::string delimiter = "--" + boundary;
+		size_t partStart = body.find(delimiter);
+		if (partStart == std::string::npos)
+			return;
+		partStart += delimiter.size();
+		if (partStart + 2 <= body.size() && body.compare(partStart, 2, "\r\n") == 0)
+			partStart += 2;
+		// Headers end
+		size_t partHeadersEnd = body.find("\r\n\r\n", partStart);
+		if (partHeadersEnd == std::string::npos)
+			return;
+		std::string partHeaders = body.substr(partStart, partHeadersEnd - partStart);
+		// Parse Headers
+		std::istringstream partStream(partHeaders);
+		std::string line;
+		while (std::getline(partStream, line))
 		{
-			std::string body = text.substr(bodyStart, _contentLenght);
-			std::cout << "Body size: " << body.size() << " (Content-Length: " << _contentLenght << ")" << std::endl;
-			std::cout << "Body request:\n" << body << std::endl; // TMP
-			// TMP Procesar body según Content-Type y Content-Length
+			if (!line.empty() && line[line.size() - 1] == '\r')
+				line.erase(line.size() - 1);
+
+			size_t colon = line.find(':');
+			if (colon != std::string::npos)
+			{
+				std::string name = line.substr(0, colon);
+				std::string value = line.substr(colon + 1);
+				size_t first = value.find_first_not_of(" \t");
+				value = (first != std::string::npos) ? value.substr(first) : "";
+				this->setContentHeader(name, value);
+			}
 		}
+		// Binary data
+		size_t dataStart = partHeadersEnd + 4;
+		size_t dataEnd = body.find("\r\n" + delimiter, dataStart);
+		if (dataEnd == std::string::npos)
+			dataEnd = body.size();
+		std::string binary = body.substr(dataStart, dataEnd - dataStart);
+		this->setContent(binary);
 	}
 }
 

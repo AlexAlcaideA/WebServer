@@ -259,12 +259,72 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	//return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
 }
 
-HttpResponse methodPost(const HttpRequest& req)
+HttpResponse server::methodPost(const HttpRequest& req, const client& currentClient)
 {
-	(void)req;
 	std::map<std::string, std::string> map;
-	std::cout << "POST Method!" << std::endl;
-	return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+	// Obtain server and location
+	const std::string* host = req.getHeader(HttpHeaders::HOST);
+	if (!host)
+		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+
+	ServerContext::ServerListen clientListen = currentClient.GetListener();
+	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
+	if (!serv)
+		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404));
+	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
+	if (!loc)
+		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404));
+
+	// Check if the method is allowed
+	if (!checkLocalMethods(Http::POST, *loc))
+        return HttpResponse("HTTP/1.1", map, 405, HttpStatus::reasonPhrase(405));
+
+	// Check if it has upload configuration
+	const std::string* uploadStore = loc->GetUploadStore();
+	if (!uploadStore || uploadStore->empty())
+		return HttpResponse("HTTP/1.1", map, 403, HttpStatus::reasonPhrase(403));
+
+	// Get data from request
+	const std::map<std::string, std::string>* partHeaders = req.getContentHeaders();
+	const std::string* data = req.getContent();
+	if (!partHeaders || !data || data->empty())
+		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+	// Extract FileName
+	std::string filename;
+	std::map<std::string, std::string>::const_iterator it = partHeaders->find("Content-Disposition");
+	if (it != partHeaders->end())
+		filename = form::extractFilename(it->second);
+
+	if (filename.empty())
+		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+
+	// Sanitaize FileName
+	std::string safeName = form::sanitizeFilename(filename);
+	if (safeName.empty())
+		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+
+	// Save binary file
+	std::string fullPath = *uploadStore + "/" + safeName;
+
+	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd == -1)
+		return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+
+	size_t total = 0;
+	while (total < data->size())
+	{
+		ssize_t w = write(fd, data->data() + total, data->size() - total);
+		if (w <= 0)
+		{
+			close(fd);
+			return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+		}
+		total += w;
+	}
+	close(fd);
+
+	// Creation Response
+	return HttpResponse("HTTP/1.1", map, 201, HttpStatus::reasonPhrase(201));
 }
 
 const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const
@@ -329,7 +389,7 @@ void server::handleClient(int fd)
 			response = methodGet(request, *cli);
 			break;
 		case Http::POST:
-			response = methodPost(request);
+			response = methodPost(request, *cli);
 			break;
 		case Http::DELETE:
 			/* ... */
@@ -353,7 +413,7 @@ void server::handleClient(int fd)
         total += sent;
     }
 
-    // Eliminar cliente después de enviar (si es HTTP/1.1 con Connection: close)
+    // Eliminar cliente despues de enviar (si es HTTP/1.1 con Connection: close)
     removeClientByFd(fd);
 }
 

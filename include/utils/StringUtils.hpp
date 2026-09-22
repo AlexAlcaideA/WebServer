@@ -16,4 +16,5 @@ namespace utils
 	std::string joinPath(const std::string& a, const std::string& b);
 	bool fileExists(const std::string& path);
 	std::string stripQuotes(const std::string& str);
+	std::string extractBoundary(const std::string& contentType);
 }

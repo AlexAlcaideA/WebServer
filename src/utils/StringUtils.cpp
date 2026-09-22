@@ -158,4 +158,24 @@ namespace utils
     	return str;
 	}
 
+	std::string extractBoundary(const std::string& contentType)
+	{
+		const std::string key = "boundary=";
+		size_t pos = contentType.find(key);
+		if (pos == std::string::npos)
+			return "";
+		pos += key.size();
+
+		if (pos < contentType.size() && contentType[pos] == '"')
+		{
+			++pos;
+			size_t end = contentType.find('"', pos);
+			if (end == std::string::npos) return "";
+			return contentType.substr(pos, end - pos);
+		}
+		size_t end = contentType.find(';', pos);
+		if (end == std::string::npos) end = contentType.size();
+		return contentType.substr(pos, end - pos);
+	}
+
 }
