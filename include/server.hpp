@@ -13,7 +13,6 @@ class server
 {
 	private:
 		int		server_fd;
-		int		port;
 		Configuration* _conf;
 		struct sockaddr_in	address;
 		std::vector<struct sockaddr_in>	_address;

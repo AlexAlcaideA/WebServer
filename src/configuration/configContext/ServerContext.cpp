@@ -252,7 +252,7 @@ const std::string* ServerContext::GetCgiHandler(const std::string& extension) co
 bool ServerContext::checkServerNames(const std::string& name) const
 {
 	if (!_serverName)
-		return NULL;
+		return false;
 	return _serverName->find(name) != _serverName->end();
 }
 

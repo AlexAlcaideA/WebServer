@@ -129,7 +129,7 @@ server::server(const Configuration& conf)
 			struct sockaddr_in addr;
 			if (!setAddress(servListen.serverIp, servListen.port, addr))
 				throw std::runtime_error("Invalid listen address: " + key.str());
-			
+
 			// Create TCP socket
 			int fd = socket(AF_INET, SOCK_STREAM, 0);
 			if (fd == -1)
@@ -173,10 +173,10 @@ server::server(const Configuration& conf)
 	}
 	if (_listenSockets.empty())
 		throw std::runtime_error("No listen directives found");
-	std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl;
+	std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl; // TMP Eliminar al final
 	for (size_t i = 0; i < _listenSockets.size(); ++i)
-		std::cout << "Listen fd " << _listenSockets[i] << std::endl;
-	std::cout << "poll_fds size: " << poll_fds.size() << std::endl;
+		std::cout << "Listen fd " << _listenSockets[i] << std::endl; // TMP Eliminar al final
+	std::cout << "poll_fds size: " << poll_fds.size() << std::endl; // TMP Eliminar al final
 }
 
 void server::acceptClient()
@@ -191,7 +191,7 @@ void server::acceptClient()
 	}
 	fcntl(fd, F_SETFL, O_NONBLOCK);
 
-	std::cout << "New client: " << fd << std::endl;
+	std::cout << "New client: " << fd << std::endl; // TMP Eliminar al final
 
 	client* new_client = new client(fd);
 	clients.push_back(new_client);
@@ -208,27 +208,27 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 {
 	std::map<std::string, std::string> map;
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
-	std::cout << "Hola 1" << std::endl;
+	std::cout << "Hola 1" << std::endl; // TMP Eliminar al final
 	if (!host) // Check for Header "Host"
 		return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500)); // TMP Cambiar por pagina y error correcto
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	std::cout << "Host: " << *host << " HostName: " << utils::extractHostname(*host) << std::endl;
-	std::cout << "Hola 2" << std::endl;
+	std::cout << "Host: " << *host << " HostName: " << utils::extractHostname(*host) << std::endl; // TMP Eliminar al final
+	std::cout << "Hola 2" << std::endl; // TMP Eliminar al final
 	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one
 	{
 		std::cerr << "Server vacio." << std::endl;
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	}
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
-	std::cout << "Request Target: " << req.getRequestTarget() << std::endl;
-	std::cout << "Hola 3" << std::endl;
+	std::cout << "Request Target: " << req.getRequestTarget() << std::endl; // TMP Eliminar al final
+	std::cout << "Hola 3" << std::endl; // TMP Eliminar al final
 	if (!loc) // Search for LocationContext with the same path
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
-	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl;
+	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
 	if (!checkLocalMethods(Http::GET, *loc))
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
-	std::cout << "Method allowed" << std::endl;
+	std::cout << "Method allowed" << std::endl; // TMP Eliminar al final
 	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
@@ -236,7 +236,7 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
 	}
 	std::string rootPath = *loc->GetRoot();
-	std::cout << "RootPath is: " << rootPath << std::endl;
+	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
 	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	std::string content = utils::fileToString(rootPath);
@@ -366,7 +366,7 @@ const ServerContext* server::getServerByName(const std::string& name, const std:
 
 void server::handleClient(int fd)
 {
-	
+
 	client* cli = findClientByFd(fd);
     if (!cli) return;
 
@@ -510,7 +510,7 @@ void server::run()
 
 	while (g_running)
 	{
-		
+
 		int ret = poll(&poll_fds[0], poll_fds.size(), TIME_OUT);
 		if (ret < 0)
 		{
@@ -535,14 +535,14 @@ void server::run()
 					int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &clientLen);
 					if (clientFd != -1)
 					{
-						std::cout << "Llega nuevo cliente!" << std::endl;
+						std::cout << "Llega nuevo cliente!" << std::endl; // TMP Eliminar al final
 						// Configurar non-blocking
 						int flags = fcntl(clientFd, F_GETFL, 0);
 						if (flags == -1)
 							throw std::runtime_error("fcntl F_GETFL failed");
 						if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
 							throw std::runtime_error("fcntl F_SETFL failed");
-						std::cout << "New client: " << clientFd << std::endl;
+						std::cout << "New client: " << clientFd << std::endl; // TMP Eliminar al final
 
 						client* newClient = new client(clientFd);
 
@@ -550,11 +550,11 @@ void server::run()
 
 						newClient->AddListener(localAddr.first, localAddr.second);
 						// Mostrar información de depuración
-						std::cout << "Server local address: " << localAddr.first << ":" << localAddr.second << std::endl;
+						std::cout << "Server local address: " << localAddr.first << ":" << localAddr.second << std::endl; // TMP Eliminar al final
 
 						// También puedes mostrar la dirección remota si la necesitas
 						std::cout << "Client remote address: " << utils::ipToString(clientAddr.sin_addr.s_addr)
-							<< ":" << ntohs(clientAddr.sin_port) << std::endl;
+							<< ":" << ntohs(clientAddr.sin_port) << std::endl; // TMP Eliminar al final
 
 						clients.push_back(newClient);
 
@@ -582,7 +582,7 @@ void server::run()
 			}
 			else if (poll_fds[i].revents & (POLLHUP | POLLERR))
 			{
-				std::cerr << "Error cliente" << std::endl;
+				std::cerr << "Error cliente" << std::endl; // TMP Eliminar al final
 				// Cliente desconectado o error: cerrar y eliminar
 				// ...
 			}
