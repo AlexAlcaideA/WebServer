@@ -210,7 +210,7 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
 	std::cout << "Hola 1" << std::endl; // TMP Eliminar al final
 	if (!host) // Check for Header "Host"
-		return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500)); // TMP Cambiar por pagina y error correcto
+		return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500)); // TMP Cambiar por pagina y error correcto
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
 	std::cout << "Host: " << *host << " HostName: " << utils::extractHostname(*host) << std::endl; // TMP Eliminar al final
@@ -218,16 +218,16 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one
 	{
 		std::cerr << "Server vacio." << std::endl;
-		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	}
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	std::cout << "Request Target: " << req.getRequestTarget() << std::endl; // TMP Eliminar al final
 	std::cout << "Hola 3" << std::endl; // TMP Eliminar al final
 	if (!loc) // Search for LocationContext with the same path
-		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
 	if (!checkLocalMethods(Http::GET, *loc))
-		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	std::cout << "Method allowed" << std::endl; // TMP Eliminar al final
 	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
 	if (retVal) // Search if it has a Return Header
@@ -238,11 +238,11 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::string rootPath = *loc->GetRoot();
 	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
 	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
-		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	std::string content = utils::fileToString(rootPath);
 	map["Content-Type"] = "text/html";
 	map["Content-Lenght"] = content.size();
-	HttpResponse response("HTTP/1.1", map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
+	HttpResponse response(HTTP_VER, map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
 	std::string answer = response.getStringMessage();
 	std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
 
@@ -250,13 +250,13 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::map<std::string, std::string> map;
 	map["Content-Type"] = "text/html";
 	map["Content-Lenght"] = content.size();
-	HttpResponse response("HTTP/1.1", map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
+	HttpResponse response(HTTP_VER, map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
 	std::string answer = response.getStringMessage();
 	std::cout << answer << std::endl;*/
 
 	return response;
 
-	//return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+	//return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));
 }
 
 HttpResponse server::methodPost(const HttpRequest& req, const client& currentClient)
@@ -265,30 +265,30 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	// Obtain server and location
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
 	if (!host)
-		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
 
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
 	if (!serv)
-		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404));
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc)
-		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404));
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 
 	// Check if the method is allowed
 	if (!checkLocalMethods(Http::POST, *loc))
-        return HttpResponse("HTTP/1.1", map, 405, HttpStatus::reasonPhrase(405));
+        return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
 
 	// Check if it has upload configuration
 	const std::string* uploadStore = loc->GetUploadStore();
 	if (!uploadStore || uploadStore->empty())
-		return HttpResponse("HTTP/1.1", map, 403, HttpStatus::reasonPhrase(403));
+		return HttpResponse(HTTP_VER, map, 403, HttpStatus::reasonPhrase(403));
 
 	// Get data from request
 	const std::map<std::string, std::string>* partHeaders = req.getContentHeaders();
 	const std::string* data = req.getContent();
 	if (!partHeaders || !data || data->empty())
-		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
 	// Extract FileName
 	std::string filename;
 	std::map<std::string, std::string>::const_iterator it = partHeaders->find("Content-Disposition");
@@ -296,19 +296,19 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 		filename = form::extractFilename(it->second);
 
 	if (filename.empty())
-		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
 
 	// Sanitaize FileName
 	std::string safeName = form::sanitizeFilename(filename);
 	if (safeName.empty())
-		return HttpResponse("HTTP/1.1", map, 400, HttpStatus::reasonPhrase(400));
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
 
 	// Save binary file
 	std::string fullPath = *uploadStore + "/" + safeName;
 
 	int fd = open(fullPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd == -1)
-		return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+		return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));
 
 	size_t total = 0;
 	while (total < data->size())
@@ -317,16 +317,64 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 		if (w <= 0)
 		{
 			close(fd);
-			return HttpResponse("HTTP/1.1", map, 500, HttpStatus::reasonPhrase(500));
+			return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));
 		}
 		total += w;
 	}
 	close(fd);
 
 	// Creation Response
-	return HttpResponse("HTTP/1.1", map, 201, HttpStatus::reasonPhrase(201));
+	return HttpResponse(HTTP_VER, map, 201, HttpStatus::reasonPhrase(201));
 }
 
+HttpResponse server::methodDelete(const HttpRequest& req, const client& currentClient)
+{
+	std::map<std::string, std::string> map;
+	// Obtain server and location
+	const std::string* host = req.getHeader(HttpHeaders::HOST);
+	if (!host)
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
+	ServerContext::ServerListen clientListen = currentClient.GetListener();
+	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
+	if (!serv)
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
+	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
+	if (!loc)
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
+
+	// Check if the method is allowed
+	if (!checkLocalMethods(Http::DELETE, *loc))
+        return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
+
+	// Check if it has upload configuration
+	/*const std::string* uploadStore = loc->GetUploadStore();
+	if (!uploadStore || uploadStore->empty())
+		return HttpResponse(HTTP_VER, map, 403, HttpStatus::reasonPhrase(403));
+*/
+	// Get data from request
+	/*const std::map<std::string, std::string>* partHeaders = req.getContentHeaders();
+	const std::string* data = req.getContent();
+	if (!partHeaders || !data || data->empty())
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));*/
+	// Extract FileName
+	std::string filename;
+	//std::map<std::string, std::string>::const_iterator it = partHeaders->find("Content-Disposition");
+	if (it != partHeaders->end())
+		filename = form::extractFilename(it->second);
+
+	if (filename.empty())
+		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
+
+	if (remove(filename.c_str()) == 0)
+	{
+		return HttpResponse(HTTP_VER, map, 203, HttpStatus::reasonPhrase(NO_CONTENT));
+	}
+	else
+	{
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(NOT_FOUND));
+	}
+	return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(NOT_FOUND));
+}
 const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const
 {
 	const std::vector<ServerContext>* servers = _conf->GetConf().GetServers();
@@ -392,7 +440,7 @@ void server::handleClient(int fd)
 			response = methodPost(request, *cli);
 			break;
 		case Http::DELETE:
-			/* ... */
+			response = methodDelete(request, *cli);
 			break;
 		default:
 			break;

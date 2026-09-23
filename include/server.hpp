@@ -24,6 +24,7 @@ class server
 		void									acceptClient();
 		HttpResponse							methodGet(const HttpRequest& req, const client& currentClient);
 		HttpResponse 							methodPost(const HttpRequest& req, const client& currentClient);
+		HttpResponse 							methodDelete(const HttpRequest& req, const client& currentClient);
 		const ServerContext*					getServerByName(const std::string& name,
 													const std::string& ip, unsigned int port) const;
 		void									handleClient(int fd);
