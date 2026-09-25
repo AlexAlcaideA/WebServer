@@ -340,41 +340,37 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc)
+	{
+		std::cout << "No encontro contexto" << std::endl; // TMP 
 		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
-
+	}
 	// Check if the method is allowed
 	if (!checkLocalMethods(Http::DELETE, *loc))
         return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
 
-	// Check if it has upload configuration
-	/*const std::string* uploadStore = loc->GetUploadStore();
-	if (!uploadStore || uploadStore->empty())
-		return HttpResponse(HTTP_VER, map, 403, HttpStatus::reasonPhrase(403));
-*/
-	// Get data from request
-	/*const std::map<std::string, std::string>* partHeaders = req.getContentHeaders();
-	const std::string* data = req.getContent();
-	if (!partHeaders || !data || data->empty())
-		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));*/
 	// Extract FileName
 	std::string filename;
-	//std::map<std::string, std::string>::const_iterator it = partHeaders->find("Content-Disposition");
-	if (it != partHeaders->end())
-		filename = form::extractFilename(it->second);
+	if (! loc->GetIndexPath(req.getRequestTarget(), filename))
+	{
+		std::cout << "No encontro path" << std::endl; // TMP 
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
+	}
 
 	if (filename.empty())
 		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
 
 	if (remove(filename.c_str()) == 0)
 	{
-		return HttpResponse(HTTP_VER, map, 203, HttpStatus::reasonPhrase(NO_CONTENT));
+		return HttpResponse(HTTP_VER, map, 204, HttpStatus::reasonPhrase(NO_CONTENT));
 	}
-	else
-	{
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(NOT_FOUND));
+    if (errno == ENOENT)
+    {
+		std::cout << "No encontro archivo" << std::endl; // TMP 
+		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 	}
-	return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(NOT_FOUND));
+	return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));
 }
+
 const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const
 {
 	const std::vector<ServerContext>* servers = _conf->GetConf().GetServers();
