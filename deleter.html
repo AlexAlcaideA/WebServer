@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DELETE Test</title>
+</head>
+<body>
+    <h1>Test HTTP DELETE</h1>
+
+    <input id="path" type="text" value="/uploads/test.txt">
+    <button onclick="deleteFile()">DELETE</button>
+
+    <pre id="result"></pre>
+
+    <script>
+        async function deleteFile()
+        {
+            const path = document.getElementById("path").value;
+            const result = document.getElementById("result");
+
+            try
+            {
+                const response = await fetch(path, {
+                    method: "DELETE"
+                });
+
+                result.textContent =
+                    "Status: " + response.status + " " + response.statusText;
+            }
+            catch (error)
+            {
+                result.textContent = "Error: " + error;
+            }
+        }
+    </script>
+</body>
+</html>
