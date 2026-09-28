@@ -36,9 +36,9 @@ class server
 		void									removeClientByFd(int fd);
 		std::pair<std::string, unsigned short>	getLocalAddressInfo(int clientFd);
 		bool									checkLocalMethods(Http::Method method, const LocationContext& local);
-		void									acceptNewClients();
-		void									readFromClients();
-		void									writeToClients();
+		void									acceptNewClient(int listenFd);
+		void									readFromClient(size_t index);
+		void									writeToClient(size_t index);
 	public:
 		//server(int port);
 		server(const Configuration& conf);

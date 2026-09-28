@@ -447,6 +447,7 @@ void server::handleClient(int fd)
 			response = methodDelete(request, *cli);
 			break;
 		default:
+			throw std::invalid_argument("Method not found.");
 			break;
 	}
 
@@ -522,142 +523,124 @@ bool server::checkLocalMethods(Http::Method method, const LocationContext& local
 	return false;
 }
 
-void server::acceptNewClients()
+void server::acceptNewClient(int listenFd)
 {
-	for (size_t i = 0; i < _pollFds.size(); ++i)
+	struct sockaddr_in clientAddr;
+	socklen_t clientLen = sizeof(clientAddr);
+	int clientFd = accept(listenFd, (struct sockaddr*)&clientAddr, &clientLen);
+	if (clientFd == -1)
+		return;
+
+	int flags = fcntl(clientFd, F_GETFL, 0);
+	if (flags == -1 || fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
 	{
-		int fd = _pollFds[i].fd;
-		if (!isListenSocket(fd))
-			continue;
-		if (!(_pollFds[i].revents & POLLIN))
-			continue;
-
-		struct sockaddr_in clientAddr;
-		socklen_t clientLen = sizeof(clientAddr);
-		int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &clientLen);
-		if (clientFd == -1)
-			continue;
-
-		int flags = fcntl(clientFd, F_GETFL, 0);
-		if (flags == -1 || fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
-		{
-			close(clientFd);
-			continue;
-		}
-
-		client* newClient = new client(clientFd);
-		std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
-		newClient->addListener(localAddr.first, localAddr.second);
-		clients.push_back(newClient);
-
-		struct pollfd pfd;
-		pfd.fd = clientFd;
-		pfd.events = POLLIN;
-		pfd.revents = 0;
-		_newPollFds.push_back(pfd);
+		close(clientFd);
+		return;
 	}
+
+	client* newClient = new client(clientFd);
+	std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
+	newClient->addListener(localAddr.first, localAddr.second);
+	clients.push_back(newClient);
+
+	struct pollfd pfd;
+	pfd.fd = clientFd;
+	pfd.events = POLLIN;
+	pfd.revents = 0;
+	_newPollFds.push_back(pfd);
 }
 
-void server::readFromClients()
+void server::readFromClient(size_t index)
 {
-	for (size_t i = 0; i < _pollFds.size(); ++i)
+	int fd = _pollFds[index].fd;
+
+	client* cli = findClientByFd(fd);
+	if (!cli)
+		return;
+
+	ReceiveResult r = cli->receive();
+
+	if (r == RECV_CLOSED)
 	{
-		int fd = _pollFds[i].fd;
-		if (isListenSocket(fd))
-			continue;
-
-		short revents = _pollFds[i].revents;
-
-		// HUP/ERR → eliminar
-		if (revents & (POLLHUP | POLLERR))
-		{
-			removeClientByFd(fd);
-			continue;
-		}
-
-		if (!(revents & POLLIN))
-			continue;
-
-		client* cli = findClientByFd(fd);
-		if (!cli)
-			continue;
-
-		ReceiveResult r = cli->receive();
-
-		if (r == RECV_CLOSED)
-		{
-			removeClientByFd(fd);
-			continue;
-		}
-		if (r == RECV_COMPLETE)
-		{
-			try {
-				handleClient(fd);   // prepara respuesta, no envía
-			}
-			catch (...) {
-				removeClientByFd(fd);
-				continue;
-			}
-			_pollFds[i].events = POLLOUT;
-			_pollFds[i].revents = 0;
-		}
-		// RECV_INCOMPLETE → nada, seguir en POLLIN
+		removeClientByFd(fd);
+		return;
 	}
+	if (r == RECV_INCOMPLETE)
+		return;
+	try
+	{
+		handleClient(fd);
+	}
+	catch (std::exception e)
+	{
+		std::cerr << "Error handling with client: " << e.what() << std::endl;
+		removeClientByFd(fd);
+		return;
+	}
+	_pollFds[index].events = POLLOUT;
+	_pollFds[index].revents = 0;
 }
 
-void server::writeToClients()
+void server::writeToClient(size_t index)
 {
-	for (size_t i = 0; i < _pollFds.size(); ++i)
+	int fd = _pollFds[index].fd;
+
+	client* cli = findClientByFd(fd);
+	if (!cli)
+		return;
+
+	if (!cli->flushResponse())
 	{
-		int fd = _pollFds[i].fd;
-		if (isListenSocket(fd))
-			continue;
-
-		short revents = _pollFds[i].revents;
-
-		if (revents & (POLLHUP | POLLERR))
-		{
-			removeClientByFd(fd);
-			continue;
-		}
-
-		if (!(revents & POLLOUT))
-			continue;
-
-		client* cli = findClientByFd(fd);
-		if (!cli)
-			continue;
-
-		if (!cli->flushResponse())
-		{
-			removeClientByFd(fd);
-			continue;
-		}
-
-		removeClientByFd(fd);   // o volver a POLLIN si keep-alive
+		removeClientByFd(fd);
+		return;
 	}
+
+	removeClientByFd(fd);   // If keep-alive return to POLLIN
 }
 
 void server::run()
 {
 	while (g_running)
 	{
-
 		int ret = poll(&_pollFds[0], _pollFds.size(), TIME_OUT);
 		if (ret < 0)
 		{
-			std::cout << "Hola error" << std::endl;
+			std::cout << "Hola error" << std::endl; // TMP
 			if (g_running)
 				throw std::runtime_error("poll failed");
 			continue;
 		}
 
+		_newPollFds.clear();
+		for (size_t i = _pollFds.size(); i-- > 0; )
+		{
+			int   fd      = _pollFds[i].fd;
+			short revents = _pollFds[i].revents;
 
-		_newPollFds.clear();          // miembro temporal, o local pasado por ref
+			if (revents == 0)
+				continue;
 
-		acceptNewClients();
-		readFromClients();
-		writeToClients();
+			// HUP/ERR in client, delete
+			if (!isListenSocket(fd) && (revents & (POLLHUP | POLLERR)))
+			{
+				removeClientByFd(fd);
+				continue;
+			}
+
+			// Listener to accept
+			if (isListenSocket(fd))
+			{
+				if (revents & POLLIN)
+					acceptNewClient(fd);
+				continue;
+			}
+
+			// Client: read or write
+			if (revents & POLLIN)
+				readFromClient(i);
+			else if (revents & POLLOUT)
+				writeToClient(i);
+		}
 
 		// Agregar nuevos clientes al vector principal
 		for (size_t i = 0; i < _newPollFds.size(); ++i)
