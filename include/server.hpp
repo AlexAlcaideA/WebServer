@@ -16,7 +16,8 @@ class server
 		Configuration* _conf;
 		struct sockaddr_in	address;
 		std::vector<struct sockaddr_in>	_address;
-		std::vector<struct pollfd> poll_fds;
+		std::vector<struct pollfd> _pollFds;
+		std::vector<struct pollfd> _newPollFds;
 		std::vector<int> _listenSockets;
 		std::vector<client*>	clients;
 
@@ -34,6 +35,9 @@ class server
 		void									removeClientByFd(int fd);
 		std::pair<std::string, unsigned short>	getLocalAddressInfo(int clientFd);
 		bool									checkLocalMethods(Http::Method method, const LocationContext& local);
+		void									acceptNewClients();
+		void									readFromClients();
+		void									writeToClients();
 	public:
 		//server(int port);
 		server(const Configuration& conf);

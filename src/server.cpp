@@ -76,7 +76,7 @@ void	server::setupSocket()
 	pfd.fd = server_fd;
 	pfd.events = POLLIN;
 	pfd.revents = 0;
-	poll_fds.push_back(pfd);
+	_pollFds.push_back(pfd);
 	std::cout << "Server listening on port " << port << std::endl;
 }*/
 
@@ -160,12 +160,12 @@ server::server(const Configuration& conf)
 			// Save fd in client
 			_listenSockets.push_back(fd);
 
-			// Add to poll_fds
+			// Add to _pollFds
 			struct pollfd pfd;
             pfd.fd = fd;
             pfd.events = POLLIN;
             pfd.revents = 0;
-            poll_fds.push_back(pfd);
+            _pollFds.push_back(pfd);
 
             // Mark as used
             usedIps.insert(key.str());
@@ -176,7 +176,7 @@ server::server(const Configuration& conf)
 	std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl; // TMP Eliminar al final
 	for (size_t i = 0; i < _listenSockets.size(); ++i)
 		std::cout << "Listen fd " << _listenSockets[i] << std::endl; // TMP Eliminar al final
-	std::cout << "poll_fds size: " << poll_fds.size() << std::endl; // TMP Eliminar al final
+	std::cout << "_pollFds size: " << _pollFds.size() << std::endl; // TMP Eliminar al final
 }
 
 void server::acceptClient()
@@ -201,7 +201,7 @@ void server::acceptClient()
 	pfd.events = POLLIN;
 	pfd.revents = 0;
 
-	poll_fds.push_back(pfd);
+	_pollFds.push_back(pfd);
 }
 
 HttpResponse server::methodGet(const HttpRequest& req, const client& currentClient)
@@ -274,6 +274,14 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc)
 		return HttpResponse("HTTP/1.1", map, 404, HttpStatus::reasonPhrase(404));
+
+	// Check if it has a return
+	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
+	if (retVal) // Search if it has a Return Header
+	{
+		map["Location"] = utils::stripQuotes(*retVal->url);
+		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
+	}
 
 	// Check if the method is allowed
 	if (!checkLocalMethods(Http::POST, *loc))
@@ -368,21 +376,21 @@ void server::handleClient(int fd)
 {
 
 	client* cli = findClientByFd(fd);
-    if (!cli) return;
+	if (!cli) return;
 
-    if (!cli->receive())
+	if (!cli->receive())
 	{
-        removeClientByFd(fd);
-        return;
-    }
+		removeClientByFd(fd);
+		return;
+	}
 
-    // Asegurar terminador nulo en el buffer (si no lo hace receive)
-    // ...
+	// Asegurar terminador nulo en el buffer (si no lo hace receive)
+	// ...
 
-    HttpRequest request(cli->getRawData());
-    std::cout << "Request text:\n" << request << std::endl;
+	HttpRequest request(cli->getRawData());
+	std::cout << "Request text:\n" << request << std::endl;
 
-    HttpResponse response;
+	HttpResponse response;
 	switch (request.getMethod())
 	{
 		case Http::GET:
@@ -398,23 +406,8 @@ void server::handleClient(int fd)
 			break;
 	}
 
-    std::string answer = response.getStringMessage();
-	std::cout << "Response:\n" << answer << std::endl;
-    // Enviar todo el string (manejar envío parcial)
-    size_t total = 0;
-    while (total < answer.size())
-	{
-        ssize_t sent = send(fd, answer.c_str() + total, answer.size() - total, MSG_NOSIGNAL);
-        if (sent <= 0)
-		{
-            removeClientByFd(fd);
-            return;
-        }
-        total += sent;
-    }
-
-    // Eliminar cliente despues de enviar (si es HTTP/1.1 con Connection: close)
-    removeClientByFd(fd);
+	std::string answer = response.getStringMessage();
+    cli->prepareResponse(answer);
 }
 
 /*bool server::isListenSocket(int fd) const
@@ -439,12 +432,12 @@ client* server::findClientByFd(int fd)
 
 void server::removeClientByFd(int fd)
 {
-    // Delete from poll_fds
-    for (size_t i = 0; i < poll_fds.size(); ++i)
+    // Delete from _pollFds
+    for (size_t i = 0; i < _pollFds.size(); ++i)
 	{
-        if (poll_fds[i].fd == fd)
+        if (_pollFds[i].fd == fd)
 		{
-            poll_fds.erase(poll_fds.begin() + i);
+            _pollFds.erase(_pollFds.begin() + i);
             break;
         }
     }
@@ -485,119 +478,153 @@ bool server::checkLocalMethods(Http::Method method, const LocationContext& local
 	return false;
 }
 
+void server::acceptNewClients()
+{
+	for (size_t i = 0; i < _pollFds.size(); ++i)
+	{
+		int fd = _pollFds[i].fd;
+		if (!isListenSocket(fd))
+			continue;
+		if (!(_pollFds[i].revents & POLLIN))
+			continue;
+
+		struct sockaddr_in clientAddr;
+		socklen_t clientLen = sizeof(clientAddr);
+		int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &clientLen);
+		if (clientFd == -1)
+			continue;
+
+		int flags = fcntl(clientFd, F_GETFL, 0);
+		if (flags == -1 || fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
+		{
+			close(clientFd);
+			continue;
+		}
+
+		client* newClient = new client(clientFd);
+		std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
+		newClient->addListener(localAddr.first, localAddr.second);
+		clients.push_back(newClient);
+
+		struct pollfd pfd;
+		pfd.fd = clientFd;
+		pfd.events = POLLIN;
+		pfd.revents = 0;
+		_newPollFds.push_back(pfd);
+	}
+}
+
+void server::readFromClients()
+{
+	for (size_t i = 0; i < _pollFds.size(); ++i)
+	{
+		int fd = _pollFds[i].fd;
+		if (isListenSocket(fd))
+			continue;
+
+		short revents = _pollFds[i].revents;
+
+		// HUP/ERR → eliminar
+		if (revents & (POLLHUP | POLLERR))
+		{
+			removeClientByFd(fd);
+			continue;
+		}
+
+		if (!(revents & POLLIN))
+			continue;
+
+		client* cli = findClientByFd(fd);
+		if (!cli)
+			continue;
+
+		ReceiveResult r = cli->receive();
+
+		if (r == RECV_CLOSED)
+		{
+			removeClientByFd(fd);
+			continue;
+		}
+		if (r == RECV_COMPLETE)
+		{
+			try {
+				handleClient(fd);   // prepara respuesta, no envía
+			}
+			catch (...) {
+				removeClientByFd(fd);
+				continue;
+			}
+			_pollFds[i].events = POLLOUT;
+			_pollFds[i].revents = 0;
+		}
+		// RECV_INCOMPLETE → nada, seguir en POLLIN
+	}
+}
+
+void server::writeToClients()
+{
+	for (size_t i = 0; i < _pollFds.size(); ++i)
+	{
+		int fd = _pollFds[i].fd;
+		if (isListenSocket(fd))
+			continue;
+
+		short revents = _pollFds[i].revents;
+
+		if (revents & (POLLHUP | POLLERR))
+		{
+			removeClientByFd(fd);
+			continue;
+		}
+
+		if (!(revents & POLLOUT))
+			continue;
+
+		client* cli = findClientByFd(fd);
+		if (!cli)
+			continue;
+
+		if (!cli->flushResponse())
+		{
+			removeClientByFd(fd);
+			continue;
+		}
+
+		removeClientByFd(fd);   // o volver a POLLIN si keep-alive
+	}
+}
+
 void server::run()
 {
-	/*while (g_running)
-	{
-		if (poll(&poll_fds[0], poll_fds.size(), -1) == -1)
-			throw std::runtime_error("poll failed");
-
-		for (size_t i = 0; i < poll_fds.size(); i++)
-		{
-			if (poll_fds[i].revents == 0)
-				continue;
-
-			if (poll_fds[i].fd == server_fd)
-			{
-				acceptClient();
-			}
-			else
-			{
-				handleClient(i);
-			}
-		}
-	}*/
-
 	while (g_running)
 	{
 
-		int ret = poll(&poll_fds[0], poll_fds.size(), TIME_OUT);
+		int ret = poll(&_pollFds[0], _pollFds.size(), TIME_OUT);
 		if (ret < 0)
 		{
 			std::cout << "Hola error" << std::endl;
-			if (errno == EINTR)
-				continue;
-			throw std::runtime_error("poll failed");
+			if (g_running)
+				throw std::runtime_error("poll failed");
+			continue;
 		}
 
-		std::vector<struct pollfd> new_poll_fds;  // temporales
 
-		for (size_t i = 0; i < poll_fds.size(); ++i)
-		{
-			if (poll_fds[i].revents & POLLIN)
-			{
-				int fd = poll_fds[i].fd;
-				if (isListenSocket(fd))
-				{
-					std::cout << "Listen socket" << std::endl;
-					struct sockaddr_in clientAddr;
-					socklen_t clientLen = sizeof(clientAddr);
-					int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &clientLen);
-					if (clientFd != -1)
-					{
-						std::cout << "Llega nuevo cliente!" << std::endl; // TMP Eliminar al final
-						// Configurar non-blocking
-						int flags = fcntl(clientFd, F_GETFL, 0);
-						if (flags == -1)
-							throw std::runtime_error("fcntl F_GETFL failed");
-						if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1)
-							throw std::runtime_error("fcntl F_SETFL failed");
-						std::cout << "New client: " << clientFd << std::endl; // TMP Eliminar al final
+		_newPollFds.clear();          // miembro temporal, o local pasado por ref
 
-						client* newClient = new client(clientFd);
+		acceptNewClients();
+		readFromClients();
+		writeToClients();
 
-						std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
-
-						newClient->AddListener(localAddr.first, localAddr.second);
-						// Mostrar información de depuración
-						std::cout << "Server local address: " << localAddr.first << ":" << localAddr.second << std::endl; // TMP Eliminar al final
-
-						// También puedes mostrar la dirección remota si la necesitas
-						std::cout << "Client remote address: " << utils::ipToString(clientAddr.sin_addr.s_addr)
-							<< ":" << ntohs(clientAddr.sin_port) << std::endl; // TMP Eliminar al final
-
-						clients.push_back(newClient);
-
-						struct pollfd pfd;
-						pfd.fd = clientFd;
-						pfd.events = POLLIN | POLLHUP | POLLERR;
-						pfd.revents = 0;
-						new_poll_fds.push_back(pfd);
-					}
-				}
-				else
-				{
-					// Es un cliente
-					int fd = poll_fds[i].fd;
-					// Buscar el cliente por fd
-					client* cli = findClientByFd(fd);
-					if (cli)
-					{
-						if (poll_fds[i].revents & (POLLHUP | POLLERR))
-							removeClientByFd(fd);
-						else if (poll_fds[i].revents & POLLIN)
-							handleClient(fd);
-    				}
-				}
-			}
-			else if (poll_fds[i].revents & (POLLHUP | POLLERR))
-			{
-				std::cerr << "Error cliente" << std::endl; // TMP Eliminar al final
-				// Cliente desconectado o error: cerrar y eliminar
-				// ...
-			}
-    	}
 		// Agregar nuevos clientes al vector principal
-		for (size_t i = 0; i < new_poll_fds.size(); ++i)
-			poll_fds.push_back(new_poll_fds[i]);
+		for (size_t i = 0; i < _newPollFds.size(); ++i)
+			_pollFds.push_back(_newPollFds[i]);
 	}
-
 }
 
 void server::removeClient(unsigned long i)
 {
-	close(poll_fds[i].fd);
+	close(_pollFds[i].fd);
 	delete clients[i -1];
-	poll_fds.erase(poll_fds.begin() + i);
+	_pollFds.erase(_pollFds.begin() + i);
 	clients.erase(clients.begin() + (i-1));
 }
