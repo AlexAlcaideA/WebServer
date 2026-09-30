@@ -12,14 +12,12 @@ class client;
 class server
 {
 	private:
-		int		server_fd;
 		Configuration* _conf;
-		struct sockaddr_in	address;
 		std::vector<struct sockaddr_in>	_address;
 		std::vector<struct pollfd> _pollFds;
 		std::vector<struct pollfd> _newPollFds;
 		std::vector<int> _listenSockets;
-		std::vector<client*>	clients;
+		std::vector<client*>	_clients;
 
 		void									setupSocket();
 		void									acceptClient();
@@ -40,7 +38,7 @@ class server
 		void									readFromClient(size_t index);
 		void									writeToClient(size_t index);
 	public:
-		//server(int port);
+		server();
 		server(const Configuration& conf);
 		~server();
 		server& operator=(const server&);

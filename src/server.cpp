@@ -1,84 +1,43 @@
 #include "server.hpp"
 #include "includes.hpp"
 
+server::server() : _conf(NULL)
+{}
+
 // Destructor default
 server::~server(void)
 {
-	close(this->server_fd);
 	for (size_t i = 0; i < _listenSockets.size(); ++i)
         if (_listenSockets[i] != -1)
             close(_listenSockets[i]);
-	for (size_t i = 0; i < clients.size(); ++i)
-		delete clients[i];
+	for (size_t i = 0; i < _clients.size(); ++i)
+		delete _clients[i];
 	if (_conf)
 		delete _conf;
 }
 // Constructor copia
-server::server(const server& otro):server_fd(otro.server_fd), address(otro.address)
+server::server(const server& other): _address(other._address), _pollFds(other._pollFds), _newPollFds(other._newPollFds), _listenSockets(other._listenSockets)
 {
+	if (_conf)
+		delete _conf;
+	_conf = new Configuration(*(other._conf));
 }
 // Sobrecarga operador asignacion
-server &server::operator= (const server& otro)
+server &server::operator= (const server& other)
 {
-	if (this == &otro)
-	{
+	if (this == &other)
 		return (*this);
-	}
+
 //Copia miembros
-	this->server_fd = otro.server_fd;
-	this->address = otro.address;
+	this->_address = other._address;
+	this->_pollFds = other._pollFds;
+	this->_newPollFds = other._newPollFds;
+	this->_listenSockets = other._listenSockets;
+	if (_conf)
+		delete _conf;
+	_conf = new Configuration(*(other._conf));
 	return (*this);
 }
-
-int	server::get_server_fd(void) const
-{
-	return (server_fd);
-}
-//Set socket para constructor
-void	server::setupSocket()
-{
-	int opt = 1;
-
-	struct protoent *protocolo = getprotobyname("tcp");
-	this->server_fd = socket(AF_INET, SOCK_STREAM, protocolo->p_proto);
-	if (server_fd == -1)
-		throw std::runtime_error("socket failed");
-
-	setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR,
-		&opt, sizeof(opt));
-
-	if (bind(server_fd,
-			(struct sockaddr *)&address,
-			sizeof(address)) == -1)
-	{
-		close(server_fd);
-		throw std::runtime_error("bind failed");
-	}
-
-	if (listen(server_fd, SOMAXCONN) == -1)
-	{
-		close(server_fd);
-		throw std::runtime_error("listen failed");
-	}
-}
-// Constructor parametrizado
-/*server::server(int port = 8080)
-	: server_fd(-1), port(port), _conf(NULL)
-{
-	std::memset(&address, 0, sizeof(address));
-
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = htonl(INADDR_ANY);
-	address.sin_port = htons(port);
-
-	setupSocket();
-	struct pollfd pfd;
-	pfd.fd = server_fd;
-	pfd.events = POLLIN;
-	pfd.revents = 0;
-	_pollFds.push_back(pfd);
-	std::cout << "Server listening on port " << port << std::endl;
-}*/
 
 bool setAddress(const std::string& ip, unsigned short port, sockaddr_in& addr)
 {
@@ -177,31 +136,6 @@ server::server(const Configuration& conf)
 	for (size_t i = 0; i < _listenSockets.size(); ++i)
 		std::cout << "Listen fd " << _listenSockets[i] << std::endl; // TMP Eliminar al final
 	std::cout << "_pollFds size: " << _pollFds.size() << std::endl; // TMP Eliminar al final
-}
-
-void server::acceptClient()
-{
-	int fd;
-
-	fd = accept(server_fd, NULL, NULL);
-	if (fd == -1)
-	{
-		std::cerr << "accept: " << strerror(errno) << std::endl;
-		return;
-	}
-	fcntl(fd, F_SETFL, O_NONBLOCK);
-
-	std::cout << "New client: " << fd << std::endl; // TMP Eliminar al final
-
-	client* new_client = new client(fd);
-	clients.push_back(new_client);
-
-	struct pollfd pfd;
-	pfd.fd = fd;
-	pfd.events = POLLIN;
-	pfd.revents = 0;
-
-	_pollFds.push_back(pfd);
 }
 
 HttpResponse server::methodGet(const HttpRequest& req, const client& currentClient)
@@ -420,13 +354,8 @@ void server::handleClient(int fd)
 {
 
 	client* cli = findClientByFd(fd);
-	if (!cli) return;
-
-	if (!cli->receive())
-	{
-		removeClientByFd(fd);
+	if (!cli)
 		return;
-	}
 
 	// Asegurar terminador nulo en el buffer (si no lo hace receive)
 	// ...
@@ -455,11 +384,6 @@ void server::handleClient(int fd)
     cli->prepareResponse(answer);
 }
 
-/*bool server::isListenSocket(int fd) const
-{
-	return std::find(clients.begin(), clients.end(), fd) != clients.end();
-}*/
-
 bool server::isListenSocket(int fd) const
 {
 	return std::find(_listenSockets.begin(), _listenSockets.end(), fd) != _listenSockets.end();
@@ -467,10 +391,10 @@ bool server::isListenSocket(int fd) const
 
 client* server::findClientByFd(int fd)
 {
-	for (size_t i = 0; i < clients.size(); ++i)
+	for (size_t i = 0; i < _clients.size(); ++i)
 	{
-		if (clients[i]->getFd() == fd)
-			return clients[i];
+		if (_clients[i]->getFd() == fd)
+			return _clients[i];
 	}
 	return NULL;
 }
@@ -487,12 +411,12 @@ void server::removeClientByFd(int fd)
         }
     }
     // Delete from clients
-    for (size_t i = 0; i < clients.size(); ++i)
+    for (size_t i = 0; i < _clients.size(); ++i)
 	{
-        if (clients[i]->getFd() == fd)
+        if (_clients[i]->getFd() == fd)
 		{
-            delete clients[i];
-            clients.erase(clients.begin() + i);
+            delete _clients[i];
+            _clients.erase(_clients.begin() + i);
             break;
         }
     }
@@ -541,7 +465,7 @@ void server::acceptNewClient(int listenFd)
 	client* newClient = new client(clientFd);
 	std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
 	newClient->addListener(localAddr.first, localAddr.second);
-	clients.push_back(newClient);
+	_clients.push_back(newClient);
 
 	struct pollfd pfd;
 	pfd.fd = clientFd;
@@ -571,7 +495,7 @@ void server::readFromClient(size_t index)
 	{
 		handleClient(fd);
 	}
-	catch (std::exception e)
+	catch (const std::exception& e)
 	{
 		std::cerr << "Error handling with client: " << e.what() << std::endl;
 		removeClientByFd(fd);
@@ -651,7 +575,7 @@ void server::run()
 void server::removeClient(unsigned long i)
 {
 	close(_pollFds[i].fd);
-	delete clients[i -1];
+	delete _clients[i -1];
 	_pollFds.erase(_pollFds.begin() + i);
-	clients.erase(clients.begin() + (i-1));
+	_clients.erase(_clients.begin() + (i-1));
 }
