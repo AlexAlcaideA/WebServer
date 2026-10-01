@@ -5,6 +5,7 @@
 # define MAX_CONTENT_LENGTH 30000000
 # define TIME_OUT 1000
 # define HTTP_VER "HTTP/1.1"
+# define ERRORS_PATH "./www/Errors"
 
 enum methods
 {

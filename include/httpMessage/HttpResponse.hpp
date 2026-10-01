@@ -8,7 +8,7 @@ class HttpResponse : public HttpMessage
 		size_t _statusCode;
 		std::string _reasonPhrase;
 
-		void getStatusPage(size_t code, const std::string& root);
+		bool getStatusPage(size_t code);
 	public:
 // Constructor default
 	HttpResponse();
