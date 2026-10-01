@@ -1,5 +1,6 @@
 #include "server.hpp"
 #include "includes.hpp"
+#include "utils/StringUtils.hpp"
 
 server::server() : _conf(NULL)
 {}
@@ -175,7 +176,7 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
 	std::string content = utils::fileToString(rootPath);
 	map["Content-Type"] = "text/html";
-	map["Content-Lenght"] = content.size();
+	map["Content-Lenght"] = utils::unsignedLongToString(content.size());
 	HttpResponse response(HTTP_VER, map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
 	std::string answer = response.getStringMessage();
 	std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
@@ -183,7 +184,7 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	/*std::string content = utils::fileToString("www/Pages/helloWebserver.html");
 	std::map<std::string, std::string> map;
 	map["Content-Type"] = "text/html";
-	map["Content-Lenght"] = content.size();
+	map["Content-Lenght"] = utils::unsignedLongToString(content.size());
 	HttpResponse response(HTTP_VER, map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
 	std::string answer = response.getStringMessage();
 	std::cout << answer << std::endl;*/
@@ -283,7 +284,7 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc)
 	{
-		std::cout << "No encontro contexto" << std::endl; // TMP 
+		std::cout << "No encontro contexto" << std::endl; // TMP
 		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 	}
 	// Check if the method is allowed
@@ -294,7 +295,7 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 	std::string filename;
 	if (! loc->GetIndexPath(req.getRequestTarget(), filename))
 	{
-		std::cout << "No encontro path" << std::endl; // TMP 
+		std::cout << "No encontro path" << std::endl; // TMP
 		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 	}
 
@@ -307,7 +308,7 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 	}
     if (errno == ENOENT)
     {
-		std::cout << "No encontro archivo" << std::endl; // TMP 
+		std::cout << "No encontro archivo" << std::endl; // TMP
 		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 	}
 	return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));

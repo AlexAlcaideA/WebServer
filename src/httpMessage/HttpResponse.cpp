@@ -1,7 +1,24 @@
 #include "../../include/httpMessage/HttpResponse.hpp"
+#include "utils/StringUtils.hpp"
+
+void HttpResponse::getStatusPage(size_t code, const std::string& root)
+{
+	std::string strCode = utils::unsignedLongToString(code);
+	if (!utils::fileExists(root + strCode))
+		return;
+	std::string body = utils::fileToString(root + strCode + ".html");
+	_headers["Content-Type"] = "text/plain";
+	_headers["Content-Length"] = body.size();
+	_contentLenght = body.size();
+}
 
 HttpResponse::HttpResponse()
 	: HttpMessage(), _statusCode(0), _reasonPhrase(HttpStatus::reasonPhrase(0))
+{}
+
+HttpResponse::HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
+		size_t statusCode)
+			: HttpMessage(httpVersion, map), _statusCode(statusCode), _reasonPhrase(HttpStatus::reasonPhrase(statusCode))
 {}
 
 HttpResponse::HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
@@ -57,7 +74,7 @@ std::string HttpResponse::getStringMessage() const
 	{
 		std::cerr << e.what() << '\n';
 	}
-	
+
 	// Headers
 	for (std::map<std::string, std::string>::const_iterator it = _headers.begin(); it != _headers.end(); ++it)
     	oss << it->first << ": " << it->second << "\r\n";
