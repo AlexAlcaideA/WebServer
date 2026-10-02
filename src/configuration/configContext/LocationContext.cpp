@@ -100,8 +100,7 @@ void LocationContext::SetUploadStore(const std::string& path)
 	{
         throw std::invalid_argument("upload_store directive duplicated");
 	}
-	
-	std::cout << "Guardado Upload" << std::endl;
+
     _uploadStore = new std::string(path);
 }
 
@@ -206,7 +205,7 @@ bool LocationContext::GetIndexPath(const std::string& requestPath, std::string& 
 	for (size_t i = 0; i < _index->size(); ++i)
 	{
 		std::string candidate = utils::joinPath(*_root, dirPath + (*_index)[i]);
-		std::cout << "Path to check: " << candidate << std::endl;
+		std::cout << "Path to check: " << candidate << std::endl; // TMP borrar
 		if (utils::fileExists(candidate))
 		{
 			outFullPath = candidate;

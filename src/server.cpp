@@ -1,6 +1,66 @@
 #include "server.hpp"
+#include "configuration/configContext/GlobalContext.hpp"
+#include "configuration/configContext/LocationContext.hpp"
+#include "configuration/configContext/ServerContext.hpp"
+#include "httpMessage/HttpResponse.hpp"
 #include "includes.hpp"
+#include "utils/HttpStatus.hpp"
 #include "utils/StringUtils.hpp"
+
+HttpResponse getErrorPage(const LocationContext& loc, unsigned int error)
+{
+	std::cout << "ERROR PAGE ENTRO LOC" << std::endl;
+	const std::string* locPath = loc.GetErrorPage(error);
+	std::map<std::string, std::string> map;
+	if (!locPath)
+		return HttpResponse(HTTP_VER, map, error);
+
+	std::string strCode = utils::unsignedLongToString(error);
+	const std::string path = *(loc.GetRoot()) + (*locPath);
+	std::cout << "PATH ERROR:" << path << std::endl;
+	std::string body = utils::fileToString(path);
+	if (body.empty())
+		return HttpResponse(HTTP_VER, map, error);
+	map["Content-Type"] = "text/html";
+	map["Content-Length"] = utils::unsignedLongToString(body.size());
+	return HttpResponse(HTTP_VER, map, body.size(), body, error, HttpStatus::reasonPhrase(error));
+}
+
+HttpResponse getErrorPage(const ServerContext& serv, unsigned int error)
+{
+	std::cout << "ERROR PAGE ENTRO SERV" << std::endl;
+	const std::string* servPath = serv.GetErrorPage(error);
+	std::map<std::string, std::string> map;
+	if (!servPath)
+		return HttpResponse(HTTP_VER, map, error);
+
+	std::string strCode = utils::unsignedLongToString(error);
+	const std::string path = *(serv.GetRoot()) + (*servPath);
+	std::string body = utils::fileToString(path);
+	if (body.empty())
+		return HttpResponse(HTTP_VER, map, error);
+	map["Content-Type"] = "text/html";
+	map["Content-Length"] = utils::unsignedLongToString(body.size());
+	return HttpResponse(HTTP_VER, map, body.size(), body, error, HttpStatus::reasonPhrase(error));
+}
+
+HttpResponse getErrorPage(const GlobalContext& global, unsigned int error)
+{
+	std::cout << "ERROR PAGE ENTRO GLOBAL" << std::endl;
+	const std::string* globalPath = global.GetErrorPage(error);
+	std::map<std::string, std::string> map;
+	if (!globalPath)
+		return HttpResponse(HTTP_VER, map, error);
+
+	std::string strCode = utils::unsignedLongToString(error);
+	const std::string path = *(global.GetRoot()) + (*globalPath);
+	std::string body = utils::fileToString(path);
+	if (body.empty())
+		return HttpResponse(HTTP_VER, map, error);
+	map["Content-Type"] = "text/html";
+	map["Content-Length"] = utils::unsignedLongToString(body.size());
+	return HttpResponse(HTTP_VER, map, body.size(), body, error, HttpStatus::reasonPhrase(error));
+}
 
 server::server() : _conf(NULL)
 {}
@@ -143,27 +203,22 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 {
 	std::map<std::string, std::string> map;
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
-	std::cout << "Hola 1" << std::endl; // TMP Eliminar al final
 	if (!host) // Check for Header "Host"
 		return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500)); // TMP Cambiar por pagina y error correcto
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	std::cout << "Host: " << *host << " HostName: " << utils::extractHostname(*host) << std::endl; // TMP Eliminar al final
-	std::cout << "Hola 2" << std::endl; // TMP Eliminar al final
 	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one
 	{
-		std::cerr << "Server vacio." << std::endl;
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		std::cerr << "Empty server." << std::endl;
+		return getErrorPage(_conf->GetConf(), 404); // TMP Cambiar por pagina y error correcto
 	}
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
-	std::cout << "Request Target: " << req.getRequestTarget() << std::endl; // TMP Eliminar al final
-	std::cout << "Hola 3" << std::endl; // TMP Eliminar al final
 	if (!loc) // Search for LocationContext with the same path
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		return getErrorPage(*serv, 404); // TMP Cambiar por pagina y error correcto
 	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
+	std::cout << "Hola location" << std::endl;
 	if (!checkLocalMethods(Http::GET, *loc))
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
-	std::cout << "Method allowed" << std::endl; // TMP Eliminar al final
+		return getErrorPage(*loc, 404); // TMP Cambiar por pagina y error correcto
 	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
@@ -173,7 +228,7 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::string rootPath = *loc->GetRoot();
 	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
 	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404)); // TMP Cambiar por pagina y error correcto
+		return getErrorPage(*loc, 404); // TMP Cambiar por pagina y error correcto
 	std::string content = utils::fileToString(rootPath);
 	map["Content-Type"] = "text/html";
 	map["Content-Lenght"] = utils::unsignedLongToString(content.size());
@@ -181,17 +236,7 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::string answer = response.getStringMessage();
 	std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
 
-	/*std::string content = utils::fileToString("www/Pages/helloWebserver.html");
-	std::map<std::string, std::string> map;
-	map["Content-Type"] = "text/html";
-	map["Content-Lenght"] = utils::unsignedLongToString(content.size());
-	HttpResponse response(HTTP_VER, map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
-	std::string answer = response.getStringMessage();
-	std::cout << answer << std::endl;*/
-
 	return response;
-
-	//return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));
 }
 
 HttpResponse server::methodPost(const HttpRequest& req, const client& currentClient)
