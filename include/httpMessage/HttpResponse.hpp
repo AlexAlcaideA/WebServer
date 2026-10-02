@@ -8,7 +8,7 @@ class HttpResponse : public HttpMessage
 		size_t _statusCode;
 		std::string _reasonPhrase;
 
-		bool getStatusPage(size_t code);
+		bool setDefaultMessage(size_t code);
 	public:
 // Constructor default
 	HttpResponse();
@@ -17,6 +17,8 @@ class HttpResponse : public HttpMessage
 		size_t statusCode);
 	HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
 		size_t statusCode, const std::string& reasonPhrase);
+	HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
+			size_t contentLenght, const std::string& content, size_t statusCode);
 	HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
 		size_t contentLenght, const std::string& content, size_t statusCode, const std::string& reasonPhrase);
 // Constructor copia

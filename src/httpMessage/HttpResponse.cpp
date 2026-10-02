@@ -1,18 +1,9 @@
 #include "../../include/httpMessage/HttpResponse.hpp"
 #include "utils/StringUtils.hpp"
 
-bool HttpResponse::getStatusPage(size_t code)
+bool HttpResponse::setDefaultMessage(size_t code)
 {
-	std::string strCode = utils::unsignedLongToString(code);
-	std::string path = ERRORS_PATH;
-	if (!path.empty() && path[path.size() - 1] != '/')
-		path += '/';
-	path += strCode + ".html";
-	if (!utils::fileExists(path))
-		return false;
-	std::string body = utils::fileToString(path);
-	if (body.empty())
-		return false;
+	std::string body = "<h1>" + utils::unsignedLongToString(code) + " " + HttpStatus::reasonPhrase(code) + "</h1>";
 	_headers["Content-Type"] = "text/html";
 	_headers["Content-Length"] = utils::unsignedLongToString(body.size());
 	_contentLenght = body.size();
@@ -28,24 +19,32 @@ HttpResponse::HttpResponse(const std::string& httpVersion, const std::map<std::s
 		size_t statusCode)
 			: HttpMessage(httpVersion, map), _statusCode(statusCode), _reasonPhrase(HttpStatus::reasonPhrase(statusCode))
 {
-	if (!getStatusPage(_statusCode))
-		std::cout << "Couln't find default page for: " << _statusCode << " " << HttpStatus::reasonPhrase(statusCode) << std::endl;
+	if (!_content)
+		setDefaultMessage(_statusCode);
 }
 
 HttpResponse::HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
 		size_t statusCode, const std::string& reasonPhrase)
 			: HttpMessage(httpVersion, map), _statusCode(statusCode), _reasonPhrase(reasonPhrase)
 {
-	if (!getStatusPage(_statusCode))
-		std::cout << "Couln't find default page for: " << _statusCode << " " << HttpStatus::reasonPhrase(statusCode) << std::endl;
+	if (!_content)
+		setDefaultMessage(_statusCode);
+}
+
+HttpResponse::HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
+		size_t contentLenght, const std::string& content, size_t statusCode)
+			: HttpMessage(httpVersion, map, contentLenght, content), _statusCode(statusCode), _reasonPhrase(HttpStatus::reasonPhrase(statusCode))
+{
+	if (!_content)
+		setDefaultMessage(_statusCode);
 }
 
 HttpResponse::HttpResponse(const std::string& httpVersion, const std::map<std::string, std::string>& map,
 		size_t contentLenght, const std::string& content, size_t statusCode, const std::string& reasonPhrase)
 			: HttpMessage(httpVersion, map, contentLenght, content), _statusCode(statusCode), _reasonPhrase(reasonPhrase)
 {
-	if (!getStatusPage(_statusCode))
-		std::cout << "Couln't find default page for: " << _statusCode << " " << HttpStatus::reasonPhrase(statusCode) << std::endl;
+	if (!_content)
+		setDefaultMessage(_statusCode);
 }
 
 HttpResponse::HttpResponse(const HttpResponse& other)
