@@ -142,9 +142,9 @@ server::server(const Configuration& conf)
 
 			// Key to avoid duplicates
 			std::ostringstream key;
-            key << servListen.serverIp << ":" << servListen.port;
-            if (usedIps.find(key.str()) != usedIps.end())
-                continue; // Already configured
+			key << servListen.serverIp << ":" << servListen.port;
+			if (usedIps.find(key.str()) != usedIps.end())
+				continue; // Already configured
 
 			struct sockaddr_in addr;
 			if (!setAddress(servListen.serverIp, servListen.port, addr))
@@ -164,31 +164,31 @@ server::server(const Configuration& conf)
 			}
 
 			// Bind
-            if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1)
-            {
-                close(fd);
-                throw std::runtime_error("bind failed for " + key.str());
-            }
+			if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1)
+			{
+				close(fd);
+				throw std::runtime_error("bind failed for " + key.str());
+			}
 
 			// Listen
-            if (listen(fd, SOMAXCONN) == -1)
-            {
-                close(fd);
-                throw std::runtime_error("listen failed for " + key.str());
-            }
+			if (listen(fd, SOMAXCONN) == -1)
+			{
+				close(fd);
+				throw std::runtime_error("listen failed for " + key.str());
+			}
 
 			// Save fd in client
 			_listenSockets.push_back(fd);
 
 			// Add to _pollFds
 			struct pollfd pfd;
-            pfd.fd = fd;
-            pfd.events = POLLIN;
-            pfd.revents = 0;
-            _pollFds.push_back(pfd);
+			pfd.fd = fd;
+			pfd.events = POLLIN;
+			pfd.revents = 0;
+			_pollFds.push_back(pfd);
 
-            // Mark as used
-            usedIps.insert(key.str());
+			// Mark as used
+			usedIps.insert(key.str());
 		}
 	}
 	if (_listenSockets.empty())
