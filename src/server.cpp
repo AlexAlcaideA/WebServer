@@ -9,7 +9,6 @@
 
 HttpResponse getErrorPage(const LocationContext& loc, unsigned int error)
 {
-	std::cout << "ERROR PAGE ENTRO LOC" << std::endl;
 	const std::string* locPath = loc.GetErrorPage(error);
 	std::map<std::string, std::string> map;
 	if (!locPath)
@@ -17,7 +16,6 @@ HttpResponse getErrorPage(const LocationContext& loc, unsigned int error)
 
 	std::string strCode = utils::unsignedLongToString(error);
 	const std::string path = *(loc.GetRoot()) + (*locPath);
-	std::cout << "PATH ERROR:" << path << std::endl;
 	std::string body = utils::fileToString(path);
 	if (body.empty())
 		return HttpResponse(HTTP_VER, map, error);
@@ -28,7 +26,6 @@ HttpResponse getErrorPage(const LocationContext& loc, unsigned int error)
 
 HttpResponse getErrorPage(const ServerContext& serv, unsigned int error)
 {
-	std::cout << "ERROR PAGE ENTRO SERV" << std::endl;
 	const std::string* servPath = serv.GetErrorPage(error);
 	std::map<std::string, std::string> map;
 	if (!servPath)
@@ -46,7 +43,6 @@ HttpResponse getErrorPage(const ServerContext& serv, unsigned int error)
 
 HttpResponse getErrorPage(const GlobalContext& global, unsigned int error)
 {
-	std::cout << "ERROR PAGE ENTRO GLOBAL" << std::endl;
 	const std::string* globalPath = global.GetErrorPage(error);
 	std::map<std::string, std::string> map;
 	if (!globalPath)
@@ -60,6 +56,74 @@ HttpResponse getErrorPage(const GlobalContext& global, unsigned int error)
 	map["Content-Type"] = "text/html";
 	map["Content-Length"] = utils::unsignedLongToString(body.size());
 	return HttpResponse(HTTP_VER, map, body.size(), body, error, HttpStatus::reasonPhrase(error));
+}
+
+HttpResponse getIndexList(DIR* dir, const std::string& requestPath, const std::string& root)
+{
+	std::ostringstream html;
+	html << "<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\">";
+	html << "<title>Index of " << requestPath << "</title></head><body>";
+	html << "<h1>Index of " << requestPath << "</h1><hr><pre>";
+
+	if (requestPath != "/")
+		html << "<a href=\"../\">../</a>\n";
+
+	struct dirent* entry;
+	while ((entry = readdir(dir)))
+	{
+		std::string name = entry->d_name;
+		if (name == "." || name == "..")
+			continue;
+
+		std::string fullPath = root;
+		if (!fullPath.empty() && fullPath[fullPath.size() - 1] != '/')
+			fullPath += '/';
+		fullPath += name;
+
+		struct stat st;
+		bool isDir = (::stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
+
+		std::string displayName = name + (isDir ? "/" : "");
+		html << "<a href=\"" << displayName << "\">" << displayName << "</a>\n";
+	}
+	html << "</pre><hr></body></html>";
+	closedir(dir);
+
+	std::string body = html.str();
+	std::map<std::string, std::string> map;
+	map["Content-Type"]   = "text/html";
+	map["Content-Length"] = utils::unsignedLongToString(body.size());
+	return HttpResponse(HTTP_VER, map, body.size(), body, 200, HttpStatus::reasonPhrase(200));
+}
+
+HttpResponse getAutoIndex(const LocationContext& loc, const std::string& requestPath)
+{
+	const std::string& root = *(loc.GetRoot());
+
+	DIR* dir = opendir(root.c_str());
+	if (!dir)
+		return getErrorPage(loc, 404);
+	return getIndexList(dir, requestPath, *loc.GetRoot());
+}
+
+HttpResponse getAutoIndex(const ServerContext& serv, const std::string& requestPath)
+{
+	const std::string& root = *(serv.GetRoot());
+
+	DIR* dir = opendir(root.c_str());
+	if (!dir)
+		return getErrorPage(serv, 404);
+	return getIndexList(dir, requestPath, *serv.GetRoot());
+}
+
+HttpResponse getAutoIndex(const GlobalContext& global, const std::string& requestPath)
+{
+	const std::string& root = *(global.GetRoot());
+
+	DIR* dir = opendir(root.c_str());
+	if (!dir)
+		return getErrorPage(global, 404);
+	return getIndexList(dir, requestPath, *global.GetRoot());
 }
 
 server::server() : _conf(NULL)
@@ -204,21 +268,29 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::map<std::string, std::string> map;
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
 	if (!host) // Check for Header "Host"
-		return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500)); // TMP Cambiar por pagina y error correcto
+		return getErrorPage(_conf->GetConf(), 500); // TMP Cambiar por pagina y error correcto
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one
+	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one. Always selects first or ByDefault if there weren't any.
 	{
+		const GlobalContext& global = _conf->GetConf();
+		if (global.GetAutoIndex())
+			return getAutoIndex(global, req.getRequestTarget());
 		std::cerr << "Empty server." << std::endl;
 		return getErrorPage(_conf->GetConf(), 404); // TMP Cambiar por pagina y error correcto
 	}
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc) // Search for LocationContext with the same path
+	{
+		if (*(serv->GetAutoIndex()))
+			return getAutoIndex(*serv, req.getRequestTarget());
 		return getErrorPage(*serv, 404); // TMP Cambiar por pagina y error correcto
+	}
+		
 	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
 	std::cout << "Hola location" << std::endl;
 	if (!checkLocalMethods(Http::GET, *loc))
-		return getErrorPage(*loc, 404); // TMP Cambiar por pagina y error correcto
+		return getErrorPage(*loc, 405); // TMP Cambiar por pagina y error correcto
 	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
@@ -228,7 +300,12 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::string rootPath = *loc->GetRoot();
 	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
 	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
+	{
+		if (*loc->GetAutoIndex())
+			return getAutoIndex(*loc, req.getRequestTarget());
 		return getErrorPage(*loc, 404); // TMP Cambiar por pagina y error correcto
+	}
+		
 	std::string content = utils::fileToString(rootPath);
 	map["Content-Type"] = "text/html";
 	map["Content-Lenght"] = utils::unsignedLongToString(content.size());
