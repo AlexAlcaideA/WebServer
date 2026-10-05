@@ -75,16 +75,19 @@ HttpResponse getIndexList(DIR* dir, const std::string& requestPath, const std::s
 		if (name == "." || name == "..")
 			continue;
 
-		std::string fullPath = root;
+		std::cout << "Root: " << root << std::endl; // TMP
+		std::string fullPath = requestPath;
+		std::cout << "Full path: " << fullPath << std::endl; // TMP
 		if (!fullPath.empty() && fullPath[fullPath.size() - 1] != '/')
 			fullPath += '/';
 		fullPath += name;
 
 		struct stat st;
-		bool isDir = (::stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
+		bool isDir = (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
 
 		std::string displayName = name + (isDir ? "/" : "");
-		html << "<a href=\"" << displayName << "\">" << displayName << "</a>\n";
+		std::cout << "Index List: " << fullPath << std::endl; // TMP
+		html << "<a href=\"" << fullPath << "\">" << displayName << "</a>\n";
 	}
 	html << "</pre><hr></body></html>";
 	closedir(dir);
@@ -98,7 +101,7 @@ HttpResponse getIndexList(DIR* dir, const std::string& requestPath, const std::s
 
 HttpResponse getAutoIndex(const LocationContext& loc, const std::string& requestPath)
 {
-	const std::string& root = *(loc.GetRoot());
+	const std::string& root = *(loc.GetRoot()) + requestPath;
 
 	DIR* dir = opendir(root.c_str());
 	if (!dir)
@@ -124,6 +127,15 @@ HttpResponse getAutoIndex(const GlobalContext& global, const std::string& reques
 	if (!dir)
 		return getErrorPage(global, 404);
 	return getIndexList(dir, requestPath, *global.GetRoot());
+}
+
+HttpResponse buildResponse(const std::string& rootPath)
+{
+	std::string content = utils::fileToString(rootPath);
+	std::map<std::string, std::string> map;
+	map["Content-Type"]   = "text/html";
+	map["Content-Length"] = utils::unsignedLongToString(content.size());
+	return HttpResponse(HTTP_VER, map, content.size(), content, 200);
 }
 
 server::server() : _conf(NULL)
@@ -268,52 +280,61 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 	std::map<std::string, std::string> map;
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
 	if (!host) // Check for Header "Host"
-		return getErrorPage(_conf->GetConf(), 500); // TMP Cambiar por pagina y error correcto
+		return getErrorPage(_conf->GetConf(), 400); // TMP Cambiar por pagina y error correcto
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
 	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one. Always selects first or ByDefault if there weren't any.
 	{
-		const GlobalContext& global = _conf->GetConf();
-		if (global.GetAutoIndex())
-			return getAutoIndex(global, req.getRequestTarget());
 		std::cerr << "Empty server." << std::endl;
 		return getErrorPage(_conf->GetConf(), 404); // TMP Cambiar por pagina y error correcto
 	}
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc) // Search for LocationContext with the same path
-	{
-		if (*(serv->GetAutoIndex()))
-			return getAutoIndex(*serv, req.getRequestTarget());
 		return getErrorPage(*serv, 404); // TMP Cambiar por pagina y error correcto
-	}
 		
 	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
 	std::cout << "Hola location" << std::endl;
-	if (!checkLocalMethods(Http::GET, *loc))
-		return getErrorPage(*loc, 405); // TMP Cambiar por pagina y error correcto
+	
 	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
 		map["Location"] = utils::stripQuotes(*retVal->url);
 		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
 	}
+
+	if (!checkLocalMethods(Http::GET, *loc))
+		return getErrorPage(*loc, 405); // TMP Cambiar por pagina y error correcto
+
 	std::string rootPath = *loc->GetRoot();
 	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
-	if (!loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
-	{
-		if (*loc->GetAutoIndex())
-			return getAutoIndex(*loc, req.getRequestTarget());
-		return getErrorPage(*loc, 404); // TMP Cambiar por pagina y error correcto
-	}
-		
-	std::string content = utils::fileToString(rootPath);
-	map["Content-Type"] = "text/html";
-	map["Content-Lenght"] = utils::unsignedLongToString(content.size());
-	HttpResponse response(HTTP_VER, map, content.size(), content, 200, HttpStatus::reasonPhrase(200));
-	std::string answer = response.getStringMessage();
-	std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
 
-	return response;
+	HttpResponse response;
+	std::string answer;
+	switch (loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
+	{
+		case LocationContext::PATH_NOT_FOUND:
+			std::cout << "Path not found" << std::endl; // TMP
+			return getErrorPage(*loc, 404);
+		case LocationContext::PATH_DIR_NO_INDEX:
+			std::cout << "Path no index" << std::endl; // TMP
+			if (loc->GetAutoIndex() && *(loc->GetAutoIndex()))
+				return getAutoIndex(*loc, req.getRequestTarget());
+			return getErrorPage(*loc, 403);
+		case LocationContext::PATH_DIR_WITH_INDEX:
+			std::cout << "Path with index" << std::endl; // TMP
+			response = buildResponse(rootPath);
+			answer = response.getStringMessage();
+			std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
+			return response;
+		case LocationContext::PATH_FILE:
+			std::cout << "Path is file" << std::endl; // TMP
+			response = buildResponse(rootPath);
+			answer = response.getStringMessage();
+			std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
+			return response;
+		default:
+			return getErrorPage(*loc, 500);
+	}
 }
 
 HttpResponse server::methodPost(const HttpRequest& req, const client& currentClient)
@@ -322,7 +343,7 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	// Obtain server and location
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
 	if (!host)
-		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
+		return getErrorPage(_conf->GetConf(), 400);
 
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
@@ -342,7 +363,7 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 
 	// Check if the method is allowed
 	if (!checkLocalMethods(Http::POST, *loc))
-        return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
+		return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
 
 	// Check if it has upload configuration
 	const std::string* uploadStore = loc->GetUploadStore();
@@ -389,7 +410,31 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	close(fd);
 
 	// Creation Response
-	return HttpResponse(HTTP_VER, map, 201, HttpStatus::reasonPhrase(201));
+	const std::string* referer = req.getHeader("Referer");
+	const std::string* origin  = req.getHeader("Origin");
+	std::string uploadAnotherPath;
+	if (referer && !referer->empty())
+		uploadAnotherPath = HttpHeaders::extractPathFromUrl(*referer);
+	else
+		uploadAnotherPath = loc->GetPath(); // fallback: location /upload
+
+	std::string homePath = "/";
+	if (origin && !origin->empty())
+		homePath = HttpHeaders::extractPathFromUrl(*origin);
+	std::ostringstream html;
+	html << "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
+		<< "<title>Upload OK</title></head><body>"
+		<< "<h1>File uploaded successfully</h1>"
+		<< "<p>Name: " << safeName << "</p>";
+	if (!uploadAnotherPath.empty())
+    	html << "<p><a href=\"" << uploadAnotherPath << "\">Upload another</a></p>";
+	html << "<p><a href=\"" << homePath << "\">Home</a></p>"
+    	<< "</body></html>";
+
+	std::string body = html.str();
+	map["Content-Type"] = "text/html";
+	map["Content-Length"] = utils::unsignedLongToString(body.size());
+	return HttpResponse(HTTP_VER, map, body.size(), body, 201);
 }
 
 HttpResponse server::methodDelete(const HttpRequest& req, const client& currentClient)
@@ -398,42 +443,51 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 	// Obtain server and location
 	const std::string* host = req.getHeader(HttpHeaders::HOST);
 	if (!host)
-		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
+		return getErrorPage(_conf->GetConf(), 400);
 	ServerContext::ServerListen clientListen = currentClient.GetListener();
 	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
 	if (!serv)
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
+		return  getErrorPage(_conf->GetConf(), 404);
 	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
 	if (!loc)
 	{
 		std::cout << "No encontro contexto" << std::endl; // TMP
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
+		return getErrorPage(*serv, 404);
 	}
+
+	// Check if it has a return
+	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
+	if (retVal) // Search if it has a Return Header
+	{
+		map["Location"] = utils::stripQuotes(*retVal->url);
+		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
+	}
+
 	// Check if the method is allowed
 	if (!checkLocalMethods(Http::DELETE, *loc))
-        return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
+        return getErrorPage(*loc, 405);
 
-	// Extract FileName
-	std::string filename;
-	if (! loc->GetIndexPath(req.getRequestTarget(), filename))
-	{
-		std::cout << "No encontro path" << std::endl; // TMP
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
-	}
+	// Get path
+	const std::string& target = req.getRequestTarget();
+	if (target.find("..") != std::string::npos || target == "/")
+		return getErrorPage(*loc, 403);
 
-	if (filename.empty())
-		return HttpResponse(HTTP_VER, map, 400, HttpStatus::reasonPhrase(400));
+	// Build full path
+	std::string fullPath = utils::joinPath(*loc->GetRoot(), target);
 
-	if (remove(filename.c_str()) == 0)
-	{
-		return HttpResponse(HTTP_VER, map, 204, HttpStatus::reasonPhrase(NO_CONTENT));
-	}
-    if (errno == ENOENT)
-    {
-		std::cout << "No encontro archivo" << std::endl; // TMP
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
-	}
-	return HttpResponse(HTTP_VER, map, 500, HttpStatus::reasonPhrase(500));
+	struct stat st;
+	if (stat(fullPath.c_str(), &st) != 0)
+		return getErrorPage(*loc, 404);
+	
+	if (S_ISDIR(st.st_mode))
+        return getErrorPage(*loc, 403);
+
+	// Delete
+	if (std::remove(fullPath.c_str()) != 0)
+		return getErrorPage(*loc, 500);
+
+	// No content
+	return HttpResponse(HTTP_VER, map, 204);
 }
 
 const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const

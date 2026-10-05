@@ -32,4 +32,19 @@ namespace HttpHeaders
 				throw std::invalid_argument("Invalid header.");
 		}
 	}
+
+	std::string extractPathFromUrl(const std::string& url)
+	{
+
+		size_t schemeEnd = url.find("://");
+		if (schemeEnd == std::string::npos)
+			return url.empty() ? "/" : url;
+
+		size_t pathStart = url.find('/', schemeEnd + 3);
+		if (pathStart == std::string::npos)
+			return "/";
+
+		return url.substr(pathStart);
+	}
+
 }

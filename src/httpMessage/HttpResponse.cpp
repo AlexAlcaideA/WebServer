@@ -3,6 +3,8 @@
 
 bool HttpResponse::setDefaultMessage(size_t code)
 {
+	if (code == 204)
+		return false;
 	std::string body = "<h1>" + utils::unsignedLongToString(code) + " " + HttpStatus::reasonPhrase(code) + "</h1>";
 	_headers["Content-Type"] = "text/html";
 	_headers["Content-Length"] = utils::unsignedLongToString(body.size());

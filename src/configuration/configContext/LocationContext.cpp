@@ -161,58 +161,46 @@ const LocationContext::ReturnVal* LocationContext::GetReturnVal() const
 	return _returnVal;
 }
 
-bool LocationContext::GetIndexPath(const std::string& requestPath, std::string& outFullPath) const
+LocationContext::PathResult LocationContext::GetIndexPath(const std::string& requestPath, std::string& outFullPath) const
 {
-	if (!_index || !_root)
-		return false;
+	if (!_root)
+		return PATH_NOT_FOUND;
 
 	std::string basePath = utils::joinPath(*_root, requestPath);
 	struct stat st;
-	if (stat(basePath.c_str(), &st) == 0)
+	if (stat(basePath.c_str(), &st) != 0)
+		return PATH_NOT_FOUND;
+	
+	// Checks if the path is a file
+	if (S_ISREG(st.st_mode))
 	{
-		// Checks if the path is a file
-		if (S_ISREG(st.st_mode))
-		{
-			outFullPath = basePath;
-			return true;
-		}
-		// Checks if the path is a directory
-		if (S_ISDIR(st.st_mode))
-		{
-			std::string dirPath = basePath;
-			if (dirPath.empty() || dirPath[dirPath.size()-1] != '/')
-				dirPath += '/';
+		outFullPath = basePath;
+		return PATH_FILE;
+	}
+	// Checks if the path is a directory
+	if (S_ISDIR(st.st_mode))
+	{
+		std::string dirPath = basePath;
+		if (dirPath.empty() || dirPath[dirPath.size() - 1] != '/')
+			dirPath += '/';
 
+		if (_index)
+		{
 			for (size_t i = 0; i < _index->size(); ++i)
 			{
 				std::string candidate = dirPath + (*_index)[i];
 				if (utils::fileExists(candidate))  // stat + S_ISREG
 				{
 					outFullPath = candidate;
-					return true;
+					return PATH_DIR_WITH_INDEX;
 				}
 			}
-			// There is no index
-			return false;
 		}
-		// Doesn't exist
-		return false;
+		// There is no index
+		return PATH_DIR_NO_INDEX;
 	}
-	std::string dirPath = requestPath;
-	if (dirPath.empty() || dirPath[dirPath.size()-1] != '/')
-		dirPath += '/';
-
-	for (size_t i = 0; i < _index->size(); ++i)
-	{
-		std::string candidate = utils::joinPath(*_root, dirPath + (*_index)[i]);
-		std::cout << "Path to check: " << candidate << std::endl; // TMP borrar
-		if (utils::fileExists(candidate))
-		{
-			outFullPath = candidate;
-			return true;
-		}
-	}
-	return false;
+	// Doesn't exist
+	return PATH_NOT_FOUND;
 }
 
 std::ostream& operator<<(std::ostream& os, const LocationContext& other)

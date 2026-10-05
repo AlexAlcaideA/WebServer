@@ -5,6 +5,13 @@
 class LocationContext : public ConfigContext
 {
 	public:
+		enum PathResult
+		{
+			PATH_FILE,				// is a file
+			PATH_DIR_WITH_INDEX,	// is a directory with index
+			PATH_DIR_NO_INDEX,		// is a directory without index
+			PATH_NOT_FOUND			// doesn't exist
+		};
 		struct ReturnVal
 		{
 			unsigned int code;
@@ -40,7 +47,7 @@ class LocationContext : public ConfigContext
 		const std::string* GetUploadStore() const;
 		const ReturnVal* GetReturnVal() const;
 
-		bool GetIndexPath(const std::string& requestPath, std::string& outFullPath) const;
+		PathResult GetIndexPath(const std::string& requestPath, std::string& outFullPath) const;
 };
 
 std::ostream& operator<<(std::ostream& os, const LocationContext& other);
