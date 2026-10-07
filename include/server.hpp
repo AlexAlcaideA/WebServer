@@ -21,10 +21,10 @@ class server
 
 		void									setupSocket();
 		void									acceptClient();
-		HttpResponse							methodGet(const HttpRequest& req, const client& currentClient);
-		HttpResponse 							methodPost(const HttpRequest& req, const client& currentClient);
-		HttpResponse 							methodDelete(const HttpRequest& req, const client& currentClient);
-		HttpResponse							methodNotImplemented(const HttpRequest& req, const client& currentClient);
+		HttpResponse							methodGet(const HttpRequest& req, const LocationContext& loc);
+		HttpResponse 							methodPost(const HttpRequest& req, const LocationContext& loc);
+		HttpResponse 							methodDelete(const HttpRequest& req, const LocationContext& loc);
+		HttpResponse							methodNotImplemented(const HttpRequest& req, const LocationContext& loc);
 		const ServerContext*					getServerByName(const std::string& name,
 													const std::string& ip, unsigned int port) const;
 		void									handleClient(int fd);
@@ -38,6 +38,8 @@ class server
 		void									acceptNewClient(int listenFd);
 		void									readFromClient(size_t index);
 		void									writeToClient(size_t index);
+		void									handleCgi(client* cli, const HttpRequest& req, const ServerContext& serv, const LocationContext& loc,
+													const ServerContext::ServerListen& listen);
 	public:
 		server();
 		server(const Configuration& conf);

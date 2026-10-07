@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <csignal>
 #include <dirent.h>
+#include <sys/wait.h>
 
 #include <algorithm>
 

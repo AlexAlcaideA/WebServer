@@ -6,6 +6,7 @@
 #include "includes.hpp"
 #include "utils/HttpStatus.hpp"
 #include "utils/StringUtils.hpp"
+#include "cgi/CgiHandler.hpp"
 
 HttpResponse getErrorPage(const LocationContext& loc, unsigned int error)
 {
@@ -136,6 +137,11 @@ HttpResponse buildResponse(const std::string& rootPath)
 	map["Content-Type"]   = "text/html";
 	map["Content-Length"] = utils::unsignedLongToString(content.size());
 	return HttpResponse(HTTP_VER, map, content.size(), content, 200);
+}
+
+bool isCgiRequest(const HttpRequest& req, const LocationContext& loc)
+{
+
 }
 
 server::server() : _conf(NULL)
@@ -275,51 +281,35 @@ server::server(const Configuration& conf)
 	std::cout << "_pollFds size: " << _pollFds.size() << std::endl; // TMP Eliminar al final
 }
 
-HttpResponse server::methodGet(const HttpRequest& req, const client& currentClient)
+HttpResponse server::methodGet(const HttpRequest& req, const LocationContext& loc)
 {
 	std::map<std::string, std::string> map;
-	const std::string* host = req.getHeader(HttpHeaders::HOST);
-	if (!host) // Check for Header "Host"
-		return getErrorPage(_conf->GetConf(), 400); // TMP Cambiar por pagina y error correcto
-	ServerContext::ServerListen clientListen = currentClient.GetListener();
-	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one. Always selects first or ByDefault if there weren't any.
-	{
-		std::cerr << "Empty server." << std::endl;
-		return getErrorPage(_conf->GetConf(), 404); // TMP Cambiar por pagina y error correcto
-	}
-	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
-	if (!loc) // Search for LocationContext with the same path
-		return getErrorPage(*serv, 404); // TMP Cambiar por pagina y error correcto
-		
-	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
-	std::cout << "Hola location" << std::endl;
 	
-	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
+	const LocationContext::ReturnVal* retVal = loc.GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
 		map["Location"] = utils::stripQuotes(*retVal->url);
 		return HttpResponse(HTTP_VER, map, retVal->code, HttpStatus::reasonPhrase(retVal->code));
 	}
 
-	if (!checkLocalMethods(Http::GET, *loc))
-		return getErrorPage(*loc, 405); // TMP Cambiar por pagina y error correcto
+	if (!checkLocalMethods(Http::GET, loc))
+		return getErrorPage(loc, 405); // TMP Cambiar por pagina y error correcto
 
-	std::string rootPath = *loc->GetRoot();
+	std::string rootPath = *loc.GetRoot();
 	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
 
 	HttpResponse response;
 	std::string answer;
-	switch (loc->GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
+	switch (loc.GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
 	{
 		case LocationContext::PATH_NOT_FOUND:
 			std::cout << "Path not found" << std::endl; // TMP
-			return getErrorPage(*loc, 404);
+			return getErrorPage(loc, 404);
 		case LocationContext::PATH_DIR_NO_INDEX:
 			std::cout << "Path no index" << std::endl; // TMP
-			if (loc->GetAutoIndex() && *(loc->GetAutoIndex()))
-				return getAutoIndex(*loc, req.getRequestTarget());
-			return getErrorPage(*loc, 403);
+			if (loc.GetAutoIndex() && *(loc.GetAutoIndex()))
+				return getAutoIndex(loc, req.getRequestTarget());
+			return getErrorPage(loc, 403);
 		case LocationContext::PATH_DIR_WITH_INDEX:
 			std::cout << "Path with index" << std::endl; // TMP
 			response = buildResponse(rootPath);
@@ -333,28 +323,16 @@ HttpResponse server::methodGet(const HttpRequest& req, const client& currentClie
 			std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
 			return response;
 		default:
-			return getErrorPage(*loc, 500);
+			return getErrorPage(loc, 500);
 	}
 }
 
-HttpResponse server::methodPost(const HttpRequest& req, const client& currentClient)
+HttpResponse server::methodPost(const HttpRequest& req, const LocationContext& loc)
 {
 	std::map<std::string, std::string> map;
-	// Obtain server and location
-	const std::string* host = req.getHeader(HttpHeaders::HOST);
-	if (!host)
-		return getErrorPage(_conf->GetConf(), 400);
-
-	ServerContext::ServerListen clientListen = currentClient.GetListener();
-	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	if (!serv)
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
-	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
-	if (!loc)
-		return HttpResponse(HTTP_VER, map, 404, HttpStatus::reasonPhrase(404));
 
 	// Check if it has a return
-	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
+	const LocationContext::ReturnVal* retVal = loc.GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
 		map["Location"] = utils::stripQuotes(*retVal->url);
@@ -362,11 +340,11 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	}
 
 	// Check if the method is allowed
-	if (!checkLocalMethods(Http::POST, *loc))
+	if (!checkLocalMethods(Http::POST, loc))
 		return HttpResponse(HTTP_VER, map, 405, HttpStatus::reasonPhrase(405));
 
 	// Check if it has upload configuration
-	const std::string* uploadStore = loc->GetUploadStore();
+	const std::string* uploadStore = loc.GetUploadStore();
 	if (!uploadStore || uploadStore->empty())
 		return HttpResponse(HTTP_VER, map, 403, HttpStatus::reasonPhrase(403));
 
@@ -416,7 +394,7 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	if (referer && !referer->empty())
 		uploadAnotherPath = HttpHeaders::extractPathFromUrl(*referer);
 	else
-		uploadAnotherPath = loc->GetPath(); // fallback: location /upload
+		uploadAnotherPath = loc.GetPath(); // fallback: location /upload
 
 	std::string homePath = "/";
 	if (origin && !origin->empty())
@@ -437,26 +415,12 @@ HttpResponse server::methodPost(const HttpRequest& req, const client& currentCli
 	return HttpResponse(HTTP_VER, map, body.size(), body, 201);
 }
 
-HttpResponse server::methodDelete(const HttpRequest& req, const client& currentClient)
+HttpResponse server::methodDelete(const HttpRequest& req, const LocationContext& loc)
 {
 	std::map<std::string, std::string> map;
-	// Obtain server and location
-	const std::string* host = req.getHeader(HttpHeaders::HOST);
-	if (!host)
-		return getErrorPage(_conf->GetConf(), 400);
-	ServerContext::ServerListen clientListen = currentClient.GetListener();
-	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	if (!serv)
-		return  getErrorPage(_conf->GetConf(), 404);
-	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
-	if (!loc)
-	{
-		std::cout << "No encontro contexto" << std::endl; // TMP
-		return getErrorPage(*serv, 404);
-	}
 
 	// Check if it has a return
-	const LocationContext::ReturnVal* retVal = loc->GetReturnVal();
+	const LocationContext::ReturnVal* retVal = loc.GetReturnVal();
 	if (retVal) // Search if it has a Return Header
 	{
 		map["Location"] = utils::stripQuotes(*retVal->url);
@@ -464,47 +428,35 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 	}
 
 	// Check if the method is allowed
-	if (!checkLocalMethods(Http::DELETE, *loc))
-        return getErrorPage(*loc, 405);
+	if (!checkLocalMethods(Http::DELETE, loc))
+        return getErrorPage(loc, 405);
 
 	// Get path
 	const std::string& target = req.getRequestTarget();
 	if (target.find("..") != std::string::npos || target == "/")
-		return getErrorPage(*loc, 403);
+		return getErrorPage(loc, 403);
 
 	// Build full path
-	std::string fullPath = utils::joinPath(*loc->GetRoot(), target);
+	std::string fullPath = utils::joinPath(*loc.GetRoot(), target);
 
 	struct stat st;
 	if (stat(fullPath.c_str(), &st) != 0)
-		return getErrorPage(*loc, 404);
+		return getErrorPage(loc, 404);
 	
 	if (S_ISDIR(st.st_mode))
-        return getErrorPage(*loc, 403);
+        return getErrorPage(loc, 403);
 
 	// Delete
 	if (std::remove(fullPath.c_str()) != 0)
-		return getErrorPage(*loc, 500);
+		return getErrorPage(loc, 500);
 
 	// No content
 	return HttpResponse(HTTP_VER, map, 204);
 }
 
-HttpResponse server::methodNotImplemented(const HttpRequest& req, const client& currentClient)
+HttpResponse server::methodNotImplemented(const HttpRequest& req, const LocationContext& loc)
 {
-	std::map<std::string, std::string> map;
-	// Obtain server and location
-	const std::string* host = req.getHeader(HttpHeaders::HOST);
-	if (!host)
-		return getErrorPage(_conf->GetConf(), 400);
-	ServerContext::ServerListen clientListen = currentClient.GetListener();
-	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
-	if (!serv)
-		return  getErrorPage(_conf->GetConf(), 404);
-	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
-	if (!loc)
-		return getErrorPage(*serv, 404);
-	return getErrorPage(*loc, 501);
+	return getErrorPage(loc, 501);
 }
 
 const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const
@@ -551,31 +503,58 @@ void server::handleClient(int fd)
 	if (!cli)
 		return;
 
-	// Asegurar terminador nulo en el buffer (si no lo hace receive)
-	// ...
-
 	HttpRequest request(cli->getRawData());
 	std::cout << "Request text:\n" << request << std::endl;
+
+	const std::string* host = request.getHeader(HttpHeaders::HOST);
+	if (!host) // Check for Header "Host"
+	{
+		cli->prepareResponse(getErrorPage(_conf->GetConf(), 400).getStringMessage()); // TMP Cambiar por pagina y error correcto
+		return;
+	}
+		
+	ServerContext::ServerListen clientListen = cli->GetListener();
+	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
+	if (!serv) // Search for a server with the ip and port. Selects by name if there is more than one. Always selects first or ByDefault if there weren't any.
+	{
+		cli->prepareResponse(getErrorPage(_conf->GetConf(), 404).getStringMessage()); // TMP Cambiar por pagina y error correcto
+		return;
+	}
+	const LocationContext* loc = serv->GetLocation(request.getRequestTarget());
+	if (!loc) // Search for LocationContext with the same path
+	{
+		cli->prepareResponse(getErrorPage(*serv, 404).getStringMessage()); // TMP Cambiar por pagina y error correcto
+		return;
+	}	
+		
+	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
+	std::cout << "Hola location" << std::endl;
+
+	if (isCgiRequest(request, *loc))
+	{
+		handleCgi(cli, request, *serv, *loc, clientListen);
+		return;
+	}
 
 	HttpResponse response;
 	switch (request.getMethod())
 	{
 		case Http::GET:
-			response = methodGet(request, *cli);
+			response = methodGet(request, *loc);
 			break;
 		case Http::POST:
-			response = methodPost(request, *cli);
+			response = methodPost(request, *loc);
 			break;
 		case Http::DELETE:
-			response = methodDelete(request, *cli);
+			response = methodDelete(request, *loc);
 			break;
 		default:
-			response = methodNotImplemented(request, *cli);
+			response = methodNotImplemented(request, *loc);
 			break;
 	}
 
 	std::string answer = response.getStringMessage();
-    cli->prepareResponse(answer);
+	cli->prepareResponse(answer);
 }
 
 bool server::isListenSocket(int fd) const
@@ -766,4 +745,48 @@ void server::removeClient(unsigned long i)
 	delete _clients[i -1];
 	_pollFds.erase(_pollFds.begin() + i);
 	_clients.erase(_clients.begin() + (i-1));
+}
+
+void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext& serv, const LocationContext& loc, const ServerContext::ServerListen& listen)
+{
+	std::string extension = utils::extractExtension(req.getRequestTarget());
+	const std::string* interpreter = loc.GetCgiHandler(extension);
+	if (!interpreter)
+	{
+		cli->prepareResponse(getErrorPage(loc, 501).getStringMessage());
+		return;
+	}
+
+	std::string scriptPath = utils::joinPath(*loc.GetRoot(), req.getRequestTarget());
+
+	CgiHandler* cgi = _cgiManager.startCgi(scriptPath, *interpreter, req, "", *serv.GetServerName(0), listen.port);
+
+	if (!cgi)
+	{
+		cli->prepareResponse(getErrorPage(loc, 500).getStringMessage());
+		return;
+	}
+
+	cli->setCgi(cgi);
+	cgi->setClientFd(cli->getFd());   // guarda a qué cliente pertenece
+
+	// Registrar fds del CGI en poll
+	struct pollfd pfdRead;
+	pfdRead.fd = cgi->getReadFd();
+	pfdRead.events = POLLIN;
+	pfdRead.revents = 0;
+	_newPollFds.push_back(pfdRead);
+
+	if (req.getMethod() == Http::POST)
+	{
+		struct pollfd pfdWrite;
+		pfdWrite.fd = cgi->getWriteFd();
+		pfdWrite.events = POLLOUT;
+		pfdWrite.revents = 0;
+		_newPollFds.push_back(pfdWrite);
+	}
+	else
+	{
+		cgi->closeWriteFd();  // sin body que enviar
+	}
 }
