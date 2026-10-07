@@ -490,6 +490,23 @@ HttpResponse server::methodDelete(const HttpRequest& req, const client& currentC
 	return HttpResponse(HTTP_VER, map, 204);
 }
 
+HttpResponse server::methodNotImplemented(const HttpRequest& req, const client& currentClient)
+{
+	std::map<std::string, std::string> map;
+	// Obtain server and location
+	const std::string* host = req.getHeader(HttpHeaders::HOST);
+	if (!host)
+		return getErrorPage(_conf->GetConf(), 400);
+	ServerContext::ServerListen clientListen = currentClient.GetListener();
+	const ServerContext* serv = getServerByName(utils::extractHostname(*host), clientListen.serverIp, clientListen.port);
+	if (!serv)
+		return  getErrorPage(_conf->GetConf(), 404);
+	const LocationContext* loc = serv->GetLocation(req.getRequestTarget());
+	if (!loc)
+		return getErrorPage(*serv, 404);
+	return getErrorPage(*loc, 501);
+}
+
 const ServerContext* server::getServerByName(const std::string& name, const std::string& ip, unsigned int port) const
 {
 	const std::vector<ServerContext>* servers = _conf->GetConf().GetServers();
@@ -553,7 +570,7 @@ void server::handleClient(int fd)
 			response = methodDelete(request, *cli);
 			break;
 		default:
-			throw std::invalid_argument("Method not found.");
+			response = methodNotImplemented(request, *cli);
 			break;
 	}
 
@@ -597,6 +614,7 @@ void server::removeClientByFd(int fd)
             break;
         }
     }
+	std::cout << "Close client: " << fd << std::endl; // TMP
     close(fd);
 }
 
@@ -668,16 +686,9 @@ void server::readFromClient(size_t index)
 	}
 	if (r == RECV_INCOMPLETE)
 		return;
-	try
-	{
-		handleClient(fd);
-	}
-	catch (const std::exception& e)
-	{
-		std::cerr << "Error handling with client: " << e.what() << std::endl;
-		removeClientByFd(fd);
-		return;
-	}
+
+	handleClient(fd);
+
 	_pollFds[index].events = POLLOUT;
 	_pollFds[index].revents = 0;
 }
@@ -696,7 +707,7 @@ void server::writeToClient(size_t index)
 		return;
 	}
 
-	removeClientByFd(fd);   // If keep-alive return to POLLIN
+	removeClientByFd(fd); // Ignoring keep-alive
 }
 
 void server::run()

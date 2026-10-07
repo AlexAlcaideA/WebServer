@@ -6,6 +6,7 @@ class HttpRequest : public HttpMessage
 	private:
 		Http::Method _method;
 		std::string _requestTarget;
+		bool _keepAlive;
 
 	public:
 // Constructor por defecto
@@ -23,6 +24,7 @@ class HttpRequest : public HttpMessage
 // Getters
 	Http::Method getMethod() const;
 	const std::string& getRequestTarget() const;
+	bool getKeepAlive() const;
 
 	std::string getStringMessage() const;
 };

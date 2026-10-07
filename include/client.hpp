@@ -25,6 +25,7 @@ class client
 		size_t						bytes;
 		httpresponse				*response;
 		ServerContext::ServerListen _listener;
+		bool						_keepAlive;
 
 	public:
 		client(int fd);
@@ -35,12 +36,15 @@ class client
 		const std::string&	getRawData() const;
 		size_t	getBytes() const;
 		const ServerContext::ServerListen& GetListener() const;
+		bool	getKeepAlive() const;
+		void	setKeepAlive(bool val);
 		void	addListener(const std::string& ip, unsigned int port);
 		void	addListener(unsigned int port);
 		void	prepareResponse(const std::string& response);
 		bool	flushResponse();
 		bool	isWriting() const;
 		void	clearRawData();
+		void	resetForNextRequest();
 };
 
 #endif

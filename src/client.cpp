@@ -1,7 +1,7 @@
 #include "client.hpp"
 
 client::client(int fd)
-	: _client_fd(fd), bytes(0), response(NULL)
+	: _client_fd(fd), bytes(0), response(NULL), _keepAlive(false)
 {
 	_rawData.clear();
 }
@@ -68,6 +68,16 @@ const ServerContext::ServerListen& client::GetListener() const
 	return _listener;
 }
 
+bool client::getKeepAlive() const
+{
+	return _keepAlive;
+}
+
+void client::setKeepAlive(bool val)
+{
+	_keepAlive = val;
+}
+
 void client::addListener(const std::string& ip, unsigned int port)
 {
 	_listener.serverIp = ip;
@@ -109,4 +119,12 @@ bool client::flushResponse()
 	_outBuffer.clear();
 	_outOffset = 0;
 	return true;
+}
+
+void client::resetForNextRequest()
+{
+	clearRawData();
+	_outBuffer.clear();
+	_outOffset = 0;
+	_isWriting = false;
 }

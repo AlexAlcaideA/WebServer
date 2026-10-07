@@ -2,7 +2,7 @@
 #include "../../include/utils/StringUtils.hpp"
 
 HttpRequest::HttpRequest()
-	: HttpMessage(), _method(Http::UNKNOWN)
+	: HttpMessage(), _method(Http::UNKNOWN), _keepAlive(false)
 {}
 
 HttpRequest::HttpRequest(const std::string& text)
@@ -17,10 +17,7 @@ HttpRequest::HttpRequest(const std::string& text)
 	{
 		_requestTarget = pathStr;
 		_httpVersion = versionStr;
-
 		_method = Http::stringToMethod(methodStr);
-		if (_method == Http::UNKNOWN)
-			throw std::invalid_argument("Method not found or accepted.");
 	}
 	else
 		throw std::invalid_argument("Incorrect request format.");
@@ -61,6 +58,19 @@ HttpRequest::HttpRequest(const std::string& text)
 					_headers[name] = value;
 			}
 		}
+		bool keepAlive = false;
+		if (_httpVersion == "HTTP/1.1")
+		{
+			const std::string* conn = getHeader("Connection");
+			keepAlive = !(conn && *conn == "close");   // por defecto keep-alive
+		}
+		else
+		{
+			const std::string* conn = getHeader("Connection");
+			keepAlive = (conn && *conn == "keep-alive");  // HTTP/1.0: solo si lo pide
+		}
+		_keepAlive = keepAlive;
+
 		if (_method != Http::POST) // + PATCH && PUT if we add them
 			return;
 		// Message body only POST currently
@@ -153,6 +163,11 @@ Http::Method HttpRequest::getMethod() const
 const std::string& HttpRequest::getRequestTarget() const
 {
 	return _requestTarget;
+}
+
+bool HttpRequest::getKeepAlive() const
+{
+	return _keepAlive;
 }
 
 std::string HttpRequest::getStringMessage() const
