@@ -15,4 +15,5 @@ namespace HttpHeaders
 
 	Headers stringToHeaders(const std::string& str);
 	std::string HeadersToString(Headers header);
+	std::string extractPathFromUrl(const std::string& url);
 };

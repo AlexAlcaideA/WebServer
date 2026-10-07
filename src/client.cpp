@@ -1,7 +1,7 @@
 #include "client.hpp"
 
 client::client(int fd)
-	: _client_fd(fd), bytes(0), response(NULL)
+	: _client_fd(fd), bytes(0), response(NULL), _keepAlive(false)
 {
 	_rawData.clear();
 }
@@ -11,15 +11,18 @@ client::~client(void)
 /*	if (client_fd >= 0)
 		close(client_fd);
 */}
+
 int client::getFd() const
 {
 	return (_client_fd);
 }
+
 const std::string&	client::getRawData() const
 {
 	return (_rawData);
 }
-bool client::receive()
+
+ReceiveResult client::receive()
 {
 	char buffer[BUFF_SIZE];
 	while (true)
@@ -27,17 +30,10 @@ bool client::receive()
 		ssize_t	n = recv(_client_fd, buffer, sizeof(buffer), 0);
 
 		if (n == 0)
-		{
-			// Client closed connection
-			return (false);
-		}
+			return (RECV_CLOSED); // Client closed connection
 
 		if (n < 0)
-		{
-			if (errno == EAGAIN || errno == EWOULDBLOCK)
-				break; // EAGAIN / EWOULDBLOCK
-			return (false); // Error
-		}
+			return (RECV_INCOMPLETE);
 		_rawData.append(buffer, n);
 
 		// All headers?
@@ -45,6 +41,7 @@ bool client::receive()
 		if (headersEnd == std::string::npos)
 			continue; // Continue reading headers
 
+		// Parsear Content-Length
 		size_t bodyStart = headersEnd + 4;
 		size_t contentLength = 0;
 
@@ -59,11 +56,11 @@ bool client::receive()
 			std::string clValue = headers.substr(clPos, clEnd - clPos);
 			std::istringstream iss(clValue);
 			iss >> contentLength;
-        }
+		}
 		if (_rawData.size() >= bodyStart + contentLength)
-			return true; // Reading complete
+			return RECV_COMPLETE; // Reading complete
 	}
-	return (false);
+	return (RECV_INCOMPLETE);
 }
 
 const ServerContext::ServerListen& client::GetListener() const
@@ -71,13 +68,63 @@ const ServerContext::ServerListen& client::GetListener() const
 	return _listener;
 }
 
-void client::AddListener(const std::string& ip, unsigned int port)
+bool client::getKeepAlive() const
+{
+	return _keepAlive;
+}
+
+void client::setKeepAlive(bool val)
+{
+	_keepAlive = val;
+}
+
+void client::addListener(const std::string& ip, unsigned int port)
 {
 	_listener.serverIp = ip;
 	_listener.port = port;
 }
 
-void client::AddListener(unsigned int port)
+void client::addListener(unsigned int port)
 {
-	AddListener("0.0.0.0", port);
+	addListener("0.0.0.0", port);
+}
+
+void client::clearRawData()
+{
+	_rawData.clear();
+}
+
+bool client::isWriting() const
+{
+	return _isWriting;
+}
+
+void client::prepareResponse(const std::string& response)
+{
+	_outBuffer = response;
+	_outOffset = 0;
+	_isWriting = true;
+}
+
+bool client::flushResponse()
+{
+	while (_outOffset < _outBuffer.size())
+	{
+		ssize_t sent = send(_client_fd,	_outBuffer.data() + _outOffset,	_outBuffer.size() - _outOffset, MSG_NOSIGNAL);
+		if (sent <= 0)
+			return false;   // error
+		_outOffset += sent;
+	}
+	_isWriting = false;
+	_outBuffer.clear();
+	_outOffset = 0;
+	return true;
+}
+
+void client::resetForNextRequest()
+{
+	clearRawData();
+	_outBuffer.clear();
+	_outOffset = 0;
+	_isWriting = false;
 }

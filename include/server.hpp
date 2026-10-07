@@ -12,19 +12,19 @@ class client;
 class server
 {
 	private:
-		int		server_fd;
 		Configuration* _conf;
-		struct sockaddr_in	address;
 		std::vector<struct sockaddr_in>	_address;
-		std::vector<struct pollfd> poll_fds;
+		std::vector<struct pollfd> _pollFds;
+		std::vector<struct pollfd> _newPollFds;
 		std::vector<int> _listenSockets;
-		std::vector<client*>	clients;
+		std::vector<client*>	_clients;
 
 		void									setupSocket();
 		void									acceptClient();
 		HttpResponse							methodGet(const HttpRequest& req, const client& currentClient);
 		HttpResponse 							methodPost(const HttpRequest& req, const client& currentClient);
 		HttpResponse 							methodDelete(const HttpRequest& req, const client& currentClient);
+		HttpResponse							methodNotImplemented(const HttpRequest& req, const client& currentClient);
 		const ServerContext*					getServerByName(const std::string& name,
 													const std::string& ip, unsigned int port) const;
 		void									handleClient(int fd);
@@ -35,8 +35,11 @@ class server
 		void									removeClientByFd(int fd);
 		std::pair<std::string, unsigned short>	getLocalAddressInfo(int clientFd);
 		bool									checkLocalMethods(Http::Method method, const LocationContext& local);
+		void									acceptNewClient(int listenFd);
+		void									readFromClient(size_t index);
+		void									writeToClient(size_t index);
 	public:
-		//server(int port);
+		server();
 		server(const Configuration& conf);
 		~server();
 		server& operator=(const server&);

@@ -14,6 +14,7 @@
 #include <poll.h>
 #include <fcntl.h>
 #include <csignal>
+#include <dirent.h>
 
 #include <algorithm>
 

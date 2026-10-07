@@ -71,5 +71,8 @@ Testing/
 # Visual Studio Code
 .vscode/
 
+# ZED
+compile_flags.txt
+
 # Exec
 webserv

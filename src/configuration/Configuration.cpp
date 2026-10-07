@@ -206,7 +206,7 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 		catch(const std::exception& e)
 		{
 			throw std::invalid_argument(e.what());
-		}		
+		}
 	}
 	else if (directive == "server_name")
 	{
@@ -280,16 +280,15 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
          		throw std::invalid_argument("Couldn't find method; " + args[i]);
          	}
             methods.push_back(m);
-        }
-		std::cout << location->GetPath() << " Error!" << std::endl;
+		}
         location->SetLimitExcept(methods);
     }
     else if (directive == "upload_store")
 	{
-		std::cout << "Leo bien" << std::endl;
+		std::cout << "Leo bien" << std::endl; // TMP borrar
         if (args.size() < 2)
 			throw std::invalid_argument("upload_store requires a path");
-		std::cout << "Paso el test de size" << std::endl;
+		std::cout << "Paso el test de size" << std::endl; // TMP borrar
         location->SetUploadStore(args[1]);
     }
     else if (directive == "return")
@@ -517,10 +516,13 @@ void CheckServer(const GlobalContext& global, ServerContext& server)
 		tmpLocation.SetClientMaxBodySize(*server.GetClientMaxBodySize());
 		for (size_t i = 0; i < server.GetIndexes()->size(); i++)
 			tmpLocation.AddIndex(*server.GetIndex(i));
-		for (size_t i = 0; i < server.GetErrorPages()->size(); i++)
+		if (server.GetErrorPages() != NULL)
 		{
-			std::pair<const unsigned int, std::string> values = *(server.GetErrorPageIndex(i));
-			tmpLocation.AddErrorPage(values.first, values.second);
+			for (size_t i = 0; i < server.GetErrorPages()->size(); i++)
+			{
+				std::pair<const unsigned int, std::string> values = *(server.GetErrorPageIndex(i));
+				tmpLocation.AddErrorPage(values.first, values.second);
+			}
 		}
 		if (server.GetCgiHandlers() != NULL)
 		{
