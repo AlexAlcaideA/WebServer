@@ -178,4 +178,15 @@ namespace utils
 		return contentType.substr(pos, end - pos);
 	}
 
+	std::string extractExtension(const std::string& path)
+	{
+		size_t slash = path.find_last_of('/');
+		size_t dot = path.find_last_of('.');
+		if (dot == std::string::npos)
+			return "";
+		if (slash != std::string::npos && dot < slash)
+			return "";
+		return path.substr(dot);
+	}
+
 }

@@ -25,6 +25,10 @@ CONFCONTEXT_SRCS = ConfigContext.cpp LocationContext.cpp ServerContext.cpp Globa
 HTTPMESSAGE_DIR = httpMessage
 HTTPMESSAGE_SRCS = HttpMessage.cpp HttpRequest.cpp HttpResponse.cpp
 
+# Archivos en src/cgi
+CGI_DIR = cgi
+CGI_SRCS = CgiHandler.cpp CgiManager.cpp
+
 # Archivos en src/utils/
 UTILS_DIR        = utils
 UTILS_SRCS       = StringUtils.cpp HttpHeaders.cpp HttpMethod.cpp HttpStatus.cpp FormPart.cpp
@@ -33,6 +37,7 @@ UTILS_SRCS       = StringUtils.cpp HttpHeaders.cpp HttpMethod.cpp HttpStatus.cpp
 SRCS = $(SRCS_MAIN) \
        $(addprefix $(CONFCONTEXT_DIR)/, $(CONFCONTEXT_SRCS)) \
 	   $(addprefix $(HTTPMESSAGE_DIR)/, $(HTTPMESSAGE_SRCS)) \
+	   $(addprefix $(CGI_DIR)/, $(CGI_SRCS)) \
 	   $(addprefix $(UTILS_DIR)/, $(UTILS_SRCS))
 
 # -------------------------------------------------

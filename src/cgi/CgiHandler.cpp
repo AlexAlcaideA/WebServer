@@ -47,12 +47,23 @@ bool CgiHandler::_buildEnv(const HttpRequest& req, const std::string& clientIp, 
 
 HttpResponse CgiHandler::_parseCgiOutput() const
 {
+	std::cout << "[CGI DEBUG] Output raw: [" << _output << "]" << std::endl; // TMP
+	std::cout << "[CGI DEBUG] Output size: " << _output.size() << std::endl; // TMP
+
 	size_t headerEnd = _output.find("\r\n\r\n");
+	size_t sepLen = 4;
+
+	if (headerEnd == std::string::npos)
+	{
+		headerEnd = _output.find("\n\n");
+		sepLen = 2;
+	}
+
 	if (headerEnd == std::string::npos)
 		return HttpResponse(HTTP_VER, std::map<std::string, std::string>(), 500);
 
 	std::string headersBlock = _output.substr(0, headerEnd);
-	std::string body = _output.substr(headerEnd + 4);
+	std::string body = _output.substr(headerEnd + sepLen);
 
 	std::map<std::string, std::string> headers;
 	size_t statusCode = 200;
@@ -135,14 +146,15 @@ CgiHandler::CgiHandler() : _writeClosed(false)
 
 CgiHandler::CgiHandler(const std::string& scriptPath, const std::string& interpreter, const HttpRequest& req,
 	const std::string& clientIp, const std::string& serverName, unsigned int serverPort)
-		: _scriptPath(scriptPath), _interpreter(interpreter), _pid(-1), _readFd(-1), _writeFd(-1), _writeClosed(false), _exitStatus(-1)
+		: _scriptPath(scriptPath), _interpreter(interpreter), _pid(-1), _readFd(-1), _writeFd(-1), _writeClosed(false), _exitStatus(-1),
+			_clientFd(-1)
 {
 	_buildEnv(req, clientIp, serverName, serverPort);
 }
 
 CgiHandler::CgiHandler(const CgiHandler& other) : _scriptPath(other._scriptPath), _interpreter(other._interpreter),
       _env(other._env), _pid(other._pid), _readFd(other._readFd), _writeFd(other._writeFd), _writeClosed(other._writeClosed),
-	  _output(other._output), _exitStatus(other._exitStatus)
+	  _output(other._output), _exitStatus(other._exitStatus), _clientFd(other._clientFd)
 {}
 
 CgiHandler& CgiHandler::operator=(const CgiHandler& other)
@@ -199,20 +211,25 @@ bool CgiHandler::start()
 		close(pipeIn[0]); close(pipeIn[1]);
 		close(pipeOut[0]); close(pipeOut[1]);
 
-		std::string dir = _scriptPath.substr(0, _scriptPath.find_last_of('/'));
-		if (!dir.empty()) chdir(dir.c_str());
+		std::string dir      = _scriptPath.substr(0, _scriptPath.find_last_of('/'));
+		std::string filename = _scriptPath.substr(_scriptPath.find_last_of('/') + 1);
+
+		if (!dir.empty())
+			chdir(dir.c_str());
 
 		std::vector<char*> argv;
 		argv.push_back(const_cast<char*>(_interpreter.c_str()));
-		argv.push_back(const_cast<char*>(_scriptPath.c_str()));
+		argv.push_back(const_cast<char*>(filename.c_str()));
 		argv.push_back(NULL);
 
 		std::vector<char*> envp;
 		for (size_t i = 0; i < _env.size(); ++i)
 			envp.push_back(const_cast<char*>(_env[i].c_str()));
 		envp.push_back(NULL);
-
+		std::cerr << "[CGI child] chdir to: " << dir
+              << " argv[1]: " << filename << std::endl; // TMP
 		execve(_interpreter.c_str(), argv.data(), envp.data());
+		std::cerr << "[CGI child] execve failed: " << strerror(errno) << std::endl; // TMP
 		_exit(127); // failed
 	}
 
@@ -226,7 +243,22 @@ bool CgiHandler::start()
 	fcntl(_writeFd, F_SETFL, O_NONBLOCK);
 	fcntl(_readFd, F_SETFL, O_NONBLOCK);
 
+	std::cout << "[CGI] parent kept: writeFd=" << _writeFd
+          << " readFd=" << _readFd
+          << " (should have closed pipeIn[0]=" << pipeIn[0]
+          << " and pipeOut[1]=" << pipeOut[1] << ")" << std::endl;
+
 	return true;
+}
+
+int  CgiHandler::getClientFd() const
+{
+	return _clientFd;
+}
+
+void CgiHandler::setClientFd(int fd)
+{
+	_clientFd = fd;
 }
 
 int CgiHandler::getReadFd() const
@@ -237,6 +269,16 @@ int CgiHandler::getReadFd() const
 int CgiHandler::getWriteFd() const
 {
 	return _writeFd;
+}
+
+const std::string& CgiHandler::getPendingBody() const
+{
+	return _pendingBody;
+}
+
+void CgiHandler::setPendingBody(const std::string& body)
+{
+	_pendingBody = body;
 }
 
 bool CgiHandler::isRunning() const
@@ -288,14 +330,10 @@ ssize_t CgiHandler::readOutput()
 {
 	char buffer[4096];
 	ssize_t n = read(_readFd, buffer, sizeof(buffer));
-
+	std::cout << "[CGI] readOutput fd=" << _readFd
+          << " n=" << n << std::endl; // TMP
 	if (n > 0)
 		_output.append(buffer, n);
-	else if (n == 0)
-	{
-		close(_readFd);
-		_readFd = -1;
-	}
 	return n;
 }
 
@@ -306,7 +344,8 @@ const std::string& CgiHandler::getOutput() const
 
 bool CgiHandler::reapIfDone()
 {
-	if (_pid == -1) return false;
+	if (_pid == -1)
+		return false;
 
 	int status = 0;
 	pid_t r = waitpid(_pid, &status, WNOHANG);

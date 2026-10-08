@@ -66,12 +66,6 @@ void CgiManager::remove(CgiHandler* cgi)
 
 void CgiManager::reapFinished()
 {
-	for (size_t i = _active.size(); i-- > 0; )
-	{
-		if (_active[i]->reapIfDone())
-		{
-			delete _active[i];
-			_active.erase(_active.begin() + i);
-		}
-	}
+	for (size_t i = 0; i < _active.size(); ++i)
+		_active[i]->reapIfDone();
 }

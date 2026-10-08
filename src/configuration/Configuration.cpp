@@ -217,7 +217,7 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 	{
 		if (args.size() != 3)
 			throw std::invalid_argument("cgi_handler requires extension and interpreter");
-		if (args[2] != "/")
+		if (!args[2].empty() && args[2][0] != '/')
 			server->SetCgiHandler(args[1], "/usr/bin/" + args[2]);
 		else
 			server->SetCgiHandler(args[1], args[2]);
@@ -314,11 +314,10 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
 	{
         if (args.size() != 3)
 			throw std::invalid_argument("cgi_handler requires extension and interpreter");
-		if (args[2] != "/")
+		if (!args[2].empty() && args[2][0] != '/')
 			location->SetCgiHandler(args[1], "/usr/bin/" + args[2]);
 		else
 			location->SetCgiHandler(args[1], args[2]);
-        location->SetCgiHandler(args[1], args[2]);
     }
 }
 

@@ -19,6 +19,7 @@ class CgiHandler
 		int							_exitStatus;
 		std::string					_pendingBody;
 		size_t						_pendingOffset;
+		int							_clientFd;
 
 		bool _buildEnv(const HttpRequest& req, const std::string& clientIp, const std::string& serverName, unsigned int serverPort);
 		HttpResponse _parseCgiOutput() const;
@@ -34,8 +35,14 @@ class CgiHandler
 
 		bool start();
 
+		int  getClientFd() const;
+		void setClientFd(int fd);
+
 		int getReadFd() const;
 		int getWriteFd() const;
+
+		const std::string& getPendingBody() const;
+		void setPendingBody(const std::string& body);
 
 		bool isRunning() const;
 		bool isWriteClosed() const;

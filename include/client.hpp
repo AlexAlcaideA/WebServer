@@ -3,6 +3,7 @@
 
 # include "includes.hpp"
 # include "configuration/configContext/ServerContext.hpp"
+# include "cgi/CgiHandler.hpp"
 
 class httpresponse;
 
@@ -27,24 +28,32 @@ class client
 		ServerContext::ServerListen _listener;
 		bool						_keepAlive;
 
+		CgiHandler*					_cgi;
+		std::string					_clientIp;
+
 	public:
 		client(int fd);
 		~client();
 
-		int	getFd() const;
+		int					getFd() const;
 		ReceiveResult		receive();
 		const std::string&	getRawData() const;
-		size_t	getBytes() const;
+		size_t				getBytes() const;
 		const ServerContext::ServerListen& GetListener() const;
-		bool	getKeepAlive() const;
-		void	setKeepAlive(bool val);
-		void	addListener(const std::string& ip, unsigned int port);
-		void	addListener(unsigned int port);
-		void	prepareResponse(const std::string& response);
-		bool	flushResponse();
-		bool	isWriting() const;
-		void	clearRawData();
-		void	resetForNextRequest();
+		bool				getKeepAlive() const;
+		void				setKeepAlive(bool val);
+		CgiHandler*			getCgi() const;
+		void				setCgi(CgiHandler* cgi);
+		bool				hasCgi() const;
+		const std::string&	getClientIp() const;
+		void				setClientIp(const std::string& ip);
+		void				addListener(const std::string& ip, unsigned int port);
+		void				addListener(unsigned int port);
+		void				prepareResponse(const std::string& response);
+		bool				flushResponse();
+		bool				isWriting() const;
+		void				clearRawData();
+		void				resetForNextRequest();
 };
 
 #endif

@@ -17,4 +17,5 @@ namespace utils
 	bool fileExists(const std::string& path);
 	std::string stripQuotes(const std::string& str);
 	std::string extractBoundary(const std::string& contentType);
+	std::string extractExtension(const std::string& path);
 }

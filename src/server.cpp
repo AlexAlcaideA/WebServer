@@ -141,7 +141,10 @@ HttpResponse buildResponse(const std::string& rootPath)
 
 bool isCgiRequest(const HttpRequest& req, const LocationContext& loc)
 {
-
+	std::string ext = utils::extractExtension(req.getRequestTarget());
+	if (ext.empty())
+		return false;
+	return loc.GetCgiHandler(ext) != NULL;
 }
 
 server::server() : _conf(NULL)
@@ -154,9 +157,15 @@ server::~server(void)
         if (_listenSockets[i] != -1)
             close(_listenSockets[i]);
 	for (size_t i = 0; i < _clients.size(); ++i)
-		delete _clients[i];
+	{
+		if (_clients[i])
+			delete _clients[i];
+	}	
 	if (_conf)
+	{
 		delete _conf;
+		_conf = NULL;
+	}
 }
 // Constructor copia
 server::server(const server& other): _address(other._address), _pollFds(other._pollFds), _newPollFds(other._newPollFds), _listenSockets(other._listenSockets)
@@ -454,7 +463,7 @@ HttpResponse server::methodDelete(const HttpRequest& req, const LocationContext&
 	return HttpResponse(HTTP_VER, map, 204);
 }
 
-HttpResponse server::methodNotImplemented(const HttpRequest& req, const LocationContext& loc)
+HttpResponse server::methodNotImplemented(const LocationContext& loc)
 {
 	return getErrorPage(loc, 501);
 }
@@ -530,6 +539,17 @@ void server::handleClient(int fd)
 	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
 	std::cout << "Hola location" << std::endl;
 
+	std::string ext = utils::extractExtension(request.getRequestTarget());
+	std::cout << "[DEBUG] Path: " << request.getRequestTarget() // TMP
+			<< " ext: [" << ext << "]" << std::endl;
+
+	const std::string* interp = loc->GetCgiHandler(ext);
+	std::cout << "[DEBUG] Interpreter: "
+			<< (interp ? *interp : "NULL") << std::endl;
+
+	std::cout << "[DEBUG] isCgiRequest: "
+			<< (isCgiRequest(request, *loc) ? "true" : "false") << std::endl;
+
 	if (isCgiRequest(request, *loc))
 	{
 		handleCgi(cli, request, *serv, *loc, clientListen);
@@ -549,7 +569,7 @@ void server::handleClient(int fd)
 			response = methodDelete(request, *loc);
 			break;
 		default:
-			response = methodNotImplemented(request, *loc);
+			response = methodNotImplemented(*loc);
 			break;
 	}
 
@@ -574,27 +594,46 @@ client* server::findClientByFd(int fd)
 
 void server::removeClientByFd(int fd)
 {
-    // Delete from _pollFds
-    for (size_t i = 0; i < _pollFds.size(); ++i)
+	std::cout << "[REMOVE] fd=" << fd << std::endl;
+	// Delete from CGI
+	for (size_t i = 0; i < _clients.size(); ++i)
 	{
-        if (_pollFds[i].fd == fd)
+		if (_clients[i]->getFd() == fd && _clients[i]->hasCgi())
 		{
-            _pollFds.erase(_pollFds.begin() + i);
-            break;
-        }
-    }
-    // Delete from clients
-    for (size_t i = 0; i < _clients.size(); ++i)
+			CgiHandler* cgi = _clients[i]->getCgi();
+
+			for (size_t j = 0; j < _pollFds.size(); )
+			{
+				if (_pollFds[j].fd == cgi->getReadFd() || _pollFds[j].fd == cgi->getWriteFd())
+					_pollFds.erase(_pollFds.begin() + j);
+				else
+					++j;
+			}
+			_cgiManager.remove(cgi);
+			_clients[i]->setCgi(NULL);
+			break;
+		}
+	}
+	// Delete from _pollFds
+	for (size_t i = 0; i < _pollFds.size(); ++i)
 	{
-        if (_clients[i]->getFd() == fd)
+		if (_pollFds[i].fd == fd)
 		{
-            delete _clients[i];
-            _clients.erase(_clients.begin() + i);
-            break;
-        }
-    }
+			_pollFds.erase(_pollFds.begin() + i);
+			break;
+		}
+	}
+	// Delete from clients
+	for (size_t i = 0; i < _clients.size(); ++i)
+	{
+		if (_clients[i]->getFd() == fd)
+		{
+			delete _clients[i];
+			_clients.erase(_clients.begin() + i);
+			break;
+		}
+	}
 	std::cout << "Close client: " << fd << std::endl; // TMP
-    close(fd);
 }
 
 std::pair<std::string, unsigned short> server::getLocalAddressInfo(int clientFd)
@@ -639,6 +678,7 @@ void server::acceptNewClient(int listenFd)
 	client* newClient = new client(clientFd);
 	std::pair<std::string, unsigned short> localAddr = getLocalAddressInfo(clientFd);
 	newClient->addListener(localAddr.first, localAddr.second);
+	newClient->setClientIp(utils::ipToString(clientAddr.sin_addr.s_addr));
 	_clients.push_back(newClient);
 
 	struct pollfd pfd;
@@ -668,6 +708,13 @@ void server::readFromClient(size_t index)
 
 	handleClient(fd);
 
+	if (cli->hasCgi())
+	{
+		_pollFds[index].events  = 0;
+		_pollFds[index].revents = 0;
+		return;
+	}
+
 	_pollFds[index].events = POLLOUT;
 	_pollFds[index].revents = 0;
 }
@@ -693,6 +740,11 @@ void server::run()
 {
 	while (g_running)
 	{
+		std::cout << "[POLL] iteración, nfds=" << _pollFds.size() << std::endl;
+		for (size_t k = 0; k < _pollFds.size(); ++k)
+			std::cout << "  fd=" << _pollFds[k].fd
+					<< " events=" << _pollFds[k].events
+					<< " revents=" << _pollFds[k].revents << std::endl;
 		int ret = poll(&_pollFds[0], _pollFds.size(), TIME_OUT);
 		if (ret < 0)
 		{
@@ -702,6 +754,7 @@ void server::run()
 			continue;
 		}
 
+		_cgiManager.reapFinished();
 		_newPollFds.clear();
 		for (size_t i = _pollFds.size(); i-- > 0; )
 		{
@@ -710,6 +763,61 @@ void server::run()
 
 			if (revents == 0)
 				continue;
+
+			// Is a fd in CGI
+			CgiHandler* cgiRead  = _cgiManager.findByReadFd(fd);
+			CgiHandler* cgiWrite = _cgiManager.findByWriteFd(fd);
+
+			if (cgiRead)
+			{
+				if (revents & (POLLHUP | POLLERR))
+				{
+					handleCgiFinished(cgiRead);
+					continue;
+				}
+				if (revents & POLLIN)
+				{
+					ssize_t n = cgiRead->readOutput();
+					if (n == 0)  // EOF → CGI terminó
+						handleCgiFinished(cgiRead);
+				}
+				continue;
+			}
+
+			if (cgiWrite)
+			{
+				if (revents & (POLLHUP | POLLERR))
+				{
+					// El CGI cerró su stdin → dejar de enviar
+					_pollFds.erase(_pollFds.begin() + i);
+					cgiWrite->closeWriteFd();
+					continue;
+				}
+				if (revents & POLLOUT)
+				{
+					const std::string& body = cgiWrite->getPendingBody();
+					if (!body.empty())
+					{
+						if (!cgiWrite->sendBody(body))
+						{
+							// Error al enviar → matar el CGI y devolver 500 al cliente
+							client* cli = findClientByFd(cgiWrite->getClientFd());
+							if (cli)
+							{
+								cli->prepareResponse(getErrorPage(_conf->GetConf(), 500).getStringMessage());
+								cli->setCgi(NULL);
+							}
+							_cgiManager.remove(cgiWrite);
+							_pollFds.erase(_pollFds.begin() + i);
+							continue;
+						}
+					}
+					// Ya se envió todo el body → cerrar stdin del CGI
+					cgiWrite->closeWriteFd();
+					_pollFds.erase(_pollFds.begin() + i);
+				}
+				continue;
+			}
 
 			// HUP/ERR in client, delete
 			if (!isListenSocket(fd) && (revents & (POLLHUP | POLLERR)))
@@ -757,18 +865,27 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 		return;
 	}
 
-	std::string scriptPath = utils::joinPath(*loc.GetRoot(), req.getRequestTarget());
+	std::string target = req.getRequestTarget();
+	size_t q = target.find('?');
+	if (q != std::string::npos)
+		target = target.substr(0, q);
+	std::string scriptPath = utils::joinPath(*loc.GetRoot(), target);
 
-	CgiHandler* cgi = _cgiManager.startCgi(scriptPath, *interpreter, req, "", *serv.GetServerName(0), listen.port);
-
+	CgiHandler* cgi = _cgiManager.startCgi(scriptPath, *interpreter, req, cli->getClientIp(), *serv.GetServerName(0), listen.port);
+	std::cout << "[CGI] created readFd=" << (cgi ? cgi->getReadFd() : -1)
+		<< " writeFd=" << (cgi ? cgi->getWriteFd() : -1) << std::endl; // TMP
 	if (!cgi)
 	{
 		cli->prepareResponse(getErrorPage(loc, 500).getStringMessage());
 		return;
 	}
 
+	std::cout << "[CGI] client fd=" << cli->getFd()
+          << " cgiReadFd=" << cgi->getReadFd()
+          << " cgiWriteFd=" << cgi->getWriteFd() << std::endl;
+
 	cli->setCgi(cgi);
-	cgi->setClientFd(cli->getFd());   // guarda a qué cliente pertenece
+	cgi->setClientFd(cli->getFd());
 
 	// Registrar fds del CGI en poll
 	struct pollfd pfdRead;
@@ -779,6 +896,9 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 
 	if (req.getMethod() == Http::POST)
 	{
+		const std::string* body = req.getContent();
+		if (body)
+			cgi->setPendingBody(*body);
 		struct pollfd pfdWrite;
 		pfdWrite.fd = cgi->getWriteFd();
 		pfdWrite.events = POLLOUT;
@@ -789,4 +909,45 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 	{
 		cgi->closeWriteFd();  // sin body que enviar
 	}
+}
+
+void server::handleCgiFinished(CgiHandler* cgi)
+{
+	int cgiReadFd  = cgi->getReadFd();    // sigue siendo 7
+	int cgiWriteFd = cgi->getWriteFd();   // sigue siendo 6
+	int clientFd   = cgi->getClientFd();  // 4
+
+	std::cout << "[CGI] finished clientFd=" << clientFd
+			<< " readFd=" << cgiReadFd
+			<< " output=[" << cgi->getOutput() << "]" << std::endl;
+
+	client* cli = findClientByFd(clientFd);
+	if (cli)
+	{
+		HttpResponse response = cgi->buildResponse();
+		cli->prepareResponse(response.getStringMessage());
+		cli->setCgi(NULL);
+
+		for (size_t j = 0; j < _pollFds.size(); ++j)
+		{
+			if (_pollFds[j].fd == clientFd)
+			{
+				_pollFds[j].events  = POLLOUT;
+				_pollFds[j].revents = 0;
+				break;
+			}
+		}
+	}
+
+	// Eliminar los fds del CGI de _pollFds
+	for (size_t j = 0; j < _pollFds.size(); )
+	{
+		if (_pollFds[j].fd == cgiReadFd || _pollFds[j].fd == cgiWriteFd)
+			_pollFds.erase(_pollFds.begin() + j);
+		else
+			++j;
+	}
+
+	// El destructor cierra los fds
+	_cgiManager.remove(cgi);
 }

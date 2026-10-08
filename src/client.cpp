@@ -1,16 +1,17 @@
 #include "client.hpp"
 
 client::client(int fd)
-	: _client_fd(fd), bytes(0), response(NULL), _keepAlive(false)
+	: _client_fd(fd), bytes(0), response(NULL), _keepAlive(false), _cgi(NULL)
 {
 	_rawData.clear();
 }
 
 client::~client(void)
 {
-/*	if (client_fd >= 0)
-		close(client_fd);
-*/}
+	_cgi = NULL;
+	if (_client_fd >= 0)
+        close(_client_fd);
+}
 
 int client::getFd() const
 {
@@ -76,6 +77,31 @@ bool client::getKeepAlive() const
 void client::setKeepAlive(bool val)
 {
 	_keepAlive = val;
+}
+
+CgiHandler* client::getCgi() const
+{
+	return _cgi;
+}
+
+void client::setCgi(CgiHandler* cgi)
+{
+	_cgi = cgi;
+}
+
+bool client::hasCgi() const
+{
+	return _cgi != NULL;
+}
+
+const std::string& client::getClientIp() const
+{
+	return _clientIp;
+}
+
+void client::setClientIp(const std::string& ip)
+{
+	_clientIp = ip;
 }
 
 void client::addListener(const std::string& ip, unsigned int port)
