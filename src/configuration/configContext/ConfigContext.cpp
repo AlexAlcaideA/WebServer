@@ -143,6 +143,11 @@ const std::map<unsigned int, std::string>* ConfigContext::GetErrorPages() const
 
 const std::string* ConfigContext::GetErrorPage(unsigned int error) const
 {
+	if (!_errorPage)
+		return NULL;
+	std::map<unsigned int, std::string>::const_iterator it = _errorPage->find(error);
+	if (it == _errorPage->end())
+		return NULL;
 	return &((*_errorPage)[error]);
 }
 

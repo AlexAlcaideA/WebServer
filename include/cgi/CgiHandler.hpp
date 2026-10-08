@@ -23,9 +23,9 @@ class CgiHandler
 
 		bool _buildEnv(const HttpRequest& req, const std::string& clientIp, const std::string& serverName, unsigned int serverPort);
 		HttpResponse _parseCgiOutput() const;
-		static std::string _dechunk(const std::string& body);
 
 	public:
+		static std::string _dechunk(const std::string& body);
 		CgiHandler();
 		CgiHandler(const std::string& scriptPath, const std::string& interpreter, const HttpRequest& req,
 				const std::string& clientIp, const std::string& serverName, unsigned int serverPort);

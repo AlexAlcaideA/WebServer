@@ -329,7 +329,9 @@ bool Configuration::Parse()
 		std::cerr << "Cannot open file" << std::endl;
 		return false;
 	}
-
+	std::cout << "=== RAW CONTENT ===" << std::endl;
+	std::cout << content << std::endl;
+	std::cout << "=== END CONTENT ===" << std::endl;
 	size_t pos = 0;
 	std::vector<std::string> args;  // args from the current directive
 	std::vector<State> stateStack;
@@ -342,6 +344,9 @@ bool Configuration::Parse()
 	Configuration::Token tok;
 	while ((tok = GetNextToken(content, pos)).type != Token::END)
 	{
+		std::cout << "[TOKEN] type=" << tok.type
+			<< " value=[" << tok.value << "]"
+			<< " pos=" << pos << std::endl;  // TMP
 		if (tok.type == Token::WORD)
 			args.push_back(tok.value);
 		else if (tok.type == Token::SEMICOLON)
@@ -390,6 +395,8 @@ bool Configuration::Parse()
 				currentServer = global->GetLastServer();
 				currentLocation = NULL;
 				stateStack.push_back(SERVER);
+				std::cout << "[PARSER] Created server at " << currentServer
+          			<< " (total servers: " << global->GetServers()->size() << ")" << std::endl; // TMP
 			}
 			else if (blockType == "location")
 			{
@@ -409,6 +416,10 @@ bool Configuration::Parse()
 				LocationContext newLoc(args[1]);
 
 				currentLocation = currentServer->AddLocation(newLoc);
+				std::cout << "[PARSER]   + location '" << args[1]
+					<< "' added to server at " << currentServer
+					<< " (locations now: " << currentServer->GetLocations()->size() << ")"
+					<< std::endl; // TMP
 				stateStack.push_back(LOCATION);
 			}
 			else
@@ -426,12 +437,18 @@ bool Configuration::Parse()
 			// Update pointers for the current state
 			if (stateStack.back() == SERVER)
 			{
+				std::cout << "[PARSER]   - closed LOCATION" << std::endl; // TMP
 				currentLocation = NULL;
 				// currentServer is still the same
 			}
 			else if
 			(stateStack.back() == GLOBAL)
 			{
+				std::cout << "[PARSER] Closed SERVER at " << currentServer
+                  << " (locations: "
+                  << (currentServer && currentServer->GetLocations()
+                        ? currentServer->GetLocations()->size() : 0)
+                  << ")" << std::endl; // TMP
 				currentServer = NULL;
 				currentLocation = NULL;
 			}

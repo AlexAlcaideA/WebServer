@@ -357,6 +357,11 @@ HttpResponse server::methodPost(const HttpRequest& req, const LocationContext& l
 	if (!uploadStore || uploadStore->empty())
 		return HttpResponse(HTTP_VER, map, 403, HttpStatus::reasonPhrase(403));
 
+	// Check body size
+	const unsigned long long* maxSize = loc.GetClientMaxBodySize();
+	if (maxSize && req.getContentLenght() > static_cast<size_t>(*maxSize))
+		return getErrorPage(loc, 413);
+
 	// Get data from request
 	const std::map<std::string, std::string>* partHeaders = req.getContentHeaders();
 	const std::string* data = req.getContent();
@@ -898,7 +903,13 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 	{
 		const std::string* body = req.getContent();
 		if (body)
-			cgi->setPendingBody(*body);
+		{
+			std::string finalBody = *body;
+			const std::string* te = req.getHeader("Transfer-Encoding");
+			if (te && *te == "chunked")
+				finalBody = CgiHandler::_dechunk(*body);
+			cgi->setPendingBody(finalBody);
+		}
 		struct pollfd pfdWrite;
 		pfdWrite.fd = cgi->getWriteFd();
 		pfdWrite.events = POLLOUT;
