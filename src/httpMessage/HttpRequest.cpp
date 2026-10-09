@@ -53,6 +53,8 @@ HttpRequest::HttpRequest(const std::string& text)
 				{
 					if (!utils::stringToUnsignedLong(value, _contentLenght))
 						std::cerr << "Incorrect number for Content-Lenght: " << value << std::endl;
+					else
+						_headers[name] = value;
 				}
 				else
 					_headers[name] = value;
@@ -77,14 +79,30 @@ HttpRequest::HttpRequest(const std::string& text)
 		size_t bodyStart = headersEnd + 4;
 		if (bodyStart >= text.size())
 			return;
-		// Extract boundary from body
-		const std::string* ctype = this->getHeader(HttpHeaders::CONTENT_TYPE);
+
+		// Is chunked
+		const std::string* te = this->getHeader("Transfer-Encoding");
+		std::string rawBody;
+		if (te && *te == "chunked")
+		{
+			rawBody = text.substr(bodyStart);
+			rawBody = utils::dechunk(rawBody);
+		}
+		else
+			rawBody = text.substr(bodyStart, _contentLenght);
+		
+		// Save raw body
+		setRawBody(rawBody);
+		setContent(rawBody);
+		setContentLenght(rawBody.size());
+		// Extract boundary from body if it is multipart
+		const std::string* ctype = getHeader(HttpHeaders::CONTENT_TYPE);
 		if (!ctype)
 			return;
 		std::string boundary = utils::extractBoundary(*ctype);
 		if (boundary.empty())
 			return;
-		std::string body = text.substr(bodyStart, _contentLenght);
+		std::string body = rawBody;
 		// Find start of boundary
 		std::string delimiter = "--" + boundary;
 		size_t partStart = body.find(delimiter);
@@ -113,7 +131,7 @@ HttpRequest::HttpRequest(const std::string& text)
 				std::string value = line.substr(colon + 1);
 				size_t first = value.find_first_not_of(" \t");
 				value = (first != std::string::npos) ? value.substr(first) : "";
-				this->setContentHeader(name, value);
+				setContentHeader(name, value);
 			}
 		}
 		// Binary data
@@ -122,7 +140,8 @@ HttpRequest::HttpRequest(const std::string& text)
 		if (dataEnd == std::string::npos)
 			dataEnd = body.size();
 		std::string binary = body.substr(dataStart, dataEnd - dataStart);
-		this->setContent(binary);
+		setContent(binary);
+		setContentLenght(binary.size());
 	}
 }
 

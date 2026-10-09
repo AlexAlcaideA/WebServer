@@ -49,7 +49,7 @@ ReceiveResult client::receive()
 		std::string headers = _rawData.substr(0, headersEnd);
 		size_t clPos = headers.find("Content-Length:");
 		if (clPos != std::string::npos)
-        {
+		{
 			clPos += 15; // strlen("Content-Length:")
 			while (clPos < headers.size() && (headers[clPos] == ' ' || headers[clPos] == '\t'))
 				++clPos;
@@ -58,6 +58,14 @@ ReceiveResult client::receive()
 			std::istringstream iss(clValue);
 			iss >> contentLength;
 		}
+
+		if (headers.find("Transfer-Encoding: chunked") != std::string::npos)
+		{
+			if (_rawData.find("\r\n0\r\n\r\n", bodyStart) != std::string::npos || _rawData.compare(bodyStart, 5, "0\r\n\r\n") == 0)
+				return RECV_COMPLETE;
+			continue;   // Keep reading
+		}
+
 		if (_rawData.size() >= bodyStart + contentLength)
 			return RECV_COMPLETE; // Reading complete
 	}

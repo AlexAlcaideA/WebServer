@@ -19,10 +19,12 @@ namespace HttpStatus
 			case 404: return "Not Found";
 			case 405: return "Method Not Allowed";
 			case 411: return "Lenght Required";
+			case 413: return "Payload Too Large";
 			case 418: return "I'm a teapot";
 			case 500: return "Internal Server Error";
 			case 501: return "Not Implemented";
 			case 503: return "Service Unvavailable";
+			case 504: return "Gateway Timeout";
 			default:  return "Unknown Status";
 		}
 	}
@@ -44,10 +46,12 @@ namespace HttpStatus
 			case 404: return "Not Found";
 			case 405: return "Method Not Allowed";
 			case 411: return "Lenght Required";
+			case 413: return "Payload Too Large";
 			case 418: return "I'm a teapot";
 			case 500: return "Internal Server Error";
 			case 501: return "Not Implemented";
 			case 503: return "Service Unvavailable";
+			case 504: return "Gateway Timeout";
 			default:  return "Unknown Status";
 		}
 	}

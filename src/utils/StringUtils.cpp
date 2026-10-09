@@ -189,4 +189,39 @@ namespace utils
 		return path.substr(dot);
 	}
 
+	std::string dechunk(const std::string& body)
+	{
+		std::string result;
+		size_t pos = 0;
+
+		while (pos < body.size())
+		{
+			size_t lineEnd = body.find("\r\n", pos);
+			if (lineEnd == std::string::npos)
+				break;
+
+			std::string sizeStr = body.substr(pos, lineEnd - pos);
+
+			size_t semi = sizeStr.find(';');
+			if (semi != std::string::npos)
+				sizeStr = sizeStr.substr(0, semi);
+
+			std::istringstream iss(sizeStr);
+			size_t chunkSize = 0;
+			iss >> std::hex >> chunkSize;
+
+			if (chunkSize == 0)
+				break; // last chunk
+
+			pos = lineEnd + 2; // skip \r\n
+
+			// Copy data
+			if (pos + chunkSize > body.size())
+				break;
+			result.append(body, pos, chunkSize);
+
+			pos += chunkSize + 2; // skip chunk + \r\n
+		}
+		return result;
+	}
 }

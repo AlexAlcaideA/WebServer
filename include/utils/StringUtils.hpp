@@ -18,4 +18,5 @@ namespace utils
 	std::string stripQuotes(const std::string& str);
 	std::string extractBoundary(const std::string& contentType);
 	std::string extractExtension(const std::string& path);
+	std::string dechunk(const std::string& body);
 }

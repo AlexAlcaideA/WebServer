@@ -17,9 +17,9 @@ CgiManager::~CgiManager()
 }
 
 CgiHandler* CgiManager::startCgi(const std::string& scriptPath, const std::string& interpreter, const HttpRequest& req,
-				const std::string& clientIp, const std::string& serverName, unsigned int serverPort)
+				const std::string& clientIp, const std::string& serverName, unsigned int serverPort, const std::string& finalBody)
 {
-	CgiHandler* cgi = new CgiHandler(scriptPath, interpreter, req, clientIp, serverName, serverPort);
+	CgiHandler* cgi = new CgiHandler(scriptPath, interpreter, req, clientIp, serverName, serverPort, finalBody);
 
 	if (!cgi->start())
 	{
@@ -69,3 +69,19 @@ void CgiManager::reapFinished()
 	for (size_t i = 0; i < _active.size(); ++i)
 		_active[i]->reapIfDone();
 }
+
+void CgiManager::checkTimeouts()
+{
+	for (size_t i = 0; i < _active.size(); ++i)
+	{
+		if (_active[i]->getTicks() > CGI_TIMEOUT_TICKS)
+			_active[i]->killProcess();
+	}
+}
+
+void CgiManager::tickAll()
+{
+	for (size_t i = 0; i < _active.size(); ++i)
+		_active[i]->incrementTicks();
+}
+

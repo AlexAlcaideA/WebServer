@@ -19,10 +19,12 @@ namespace HttpStatus
 		NOT_FOUND = 404,
 		METHOD_NOT_ALLOWED = 405,
 		LENGTH_REQUIRED = 411,
+		PAYLOAD_TOO_LARGE = 413,
 		TEAPOT = 418,
 		INTERNAL_ERROR = 500,
 		NOT_IMPLEMENTED = 501,
-		SERVICE_DOWN = 503
+		SERVICE_DOWN = 503,
+		GATEWAY_TIMEOUT = 504
 	};
 
 	std::string reasonPhrase(HttpStatusCode code);

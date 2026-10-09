@@ -20,9 +20,6 @@ bool CgiHandler::_buildEnv(const HttpRequest& req, const std::string& clientIp, 
 	else
 		_env.push_back("QUERY_STRING=");
 	
-	const std::string* cl = req.getHeader("Content-Length");
-	if (cl)
-		_env.push_back("CONTENT_LENGTH=" + *cl);
 	const std::string* ct = req.getHeader("Content-Type");
 	if (ct)
 		_env.push_back("CONTENT_TYPE=" + *ct);
@@ -105,56 +102,22 @@ HttpResponse CgiHandler::_parseCgiOutput() const
 	return HttpResponse(HTTP_VER, headers, body.size(), body, statusCode);
 }
 
-std::string CgiHandler::_dechunk(const std::string& body)
-{
-	std::string result;
-	size_t pos = 0;
-
-	while (pos < body.size())
-	{
-		size_t lineEnd = body.find("\r\n", pos);
-		if (lineEnd == std::string::npos)
-			break;
-
-		std::string sizeStr = body.substr(pos, lineEnd - pos);
-
-		size_t semi = sizeStr.find(';');
-		if (semi != std::string::npos)
-			sizeStr = sizeStr.substr(0, semi);
-
-		std::istringstream iss(sizeStr);
-		size_t chunkSize = 0;
-		iss >> std::hex >> chunkSize;
-
-		if (chunkSize == 0)
-			break; // last chunk
-
-		pos = lineEnd + 2; // skip \r\n
-
-		// Copy data
-		if (pos + chunkSize > body.size())
-			break;
-		result.append(body, pos, chunkSize);
-
-		pos += chunkSize + 2; // skip chunk + \r\n
-	}
-	return result;
-}
-
-CgiHandler::CgiHandler() : _writeClosed(false)
+CgiHandler::CgiHandler() : _pid(-1), _readFd(-1), _writeFd(-1), _writeClosed(false), _exitStatus(-1), _clientFd(-1), _hasExited(false), _ticks(0)
 {}
 
 CgiHandler::CgiHandler(const std::string& scriptPath, const std::string& interpreter, const HttpRequest& req,
-	const std::string& clientIp, const std::string& serverName, unsigned int serverPort)
+	const std::string& clientIp, const std::string& serverName, unsigned int serverPort, const std::string& finalBody)
 		: _scriptPath(scriptPath), _interpreter(interpreter), _pid(-1), _readFd(-1), _writeFd(-1), _writeClosed(false), _exitStatus(-1),
-			_clientFd(-1)
+			_clientFd(-1), _hasExited(false), _ticks(0)
 {
 	_buildEnv(req, clientIp, serverName, serverPort);
+	_pendingBody = finalBody;
+	_env.push_back("CONTENT_LENGTH=" + utils::unsignedLongToString(finalBody.size()));
 }
 
 CgiHandler::CgiHandler(const CgiHandler& other) : _scriptPath(other._scriptPath), _interpreter(other._interpreter),
       _env(other._env), _pid(other._pid), _readFd(other._readFd), _writeFd(other._writeFd), _writeClosed(other._writeClosed),
-	  _output(other._output), _exitStatus(other._exitStatus), _clientFd(other._clientFd)
+	  _output(other._output), _exitStatus(other._exitStatus), _clientFd(other._clientFd), _hasExited(other._hasExited), _ticks(other._ticks)
 {}
 
 CgiHandler& CgiHandler::operator=(const CgiHandler& other)
@@ -170,6 +133,9 @@ CgiHandler& CgiHandler::operator=(const CgiHandler& other)
 		_output = other._output;
 		_exitStatus = other._exitStatus;
 		_writeClosed = other._writeClosed;
+		_clientFd = other._clientFd;
+		_hasExited = other._hasExited;
+		_ticks = other._ticks;
 	}
 	return *this;
 }
@@ -271,6 +237,11 @@ int CgiHandler::getWriteFd() const
 	return _writeFd;
 }
 
+int CgiHandler::getPid() const
+{
+	return _pid;
+}
+
 const std::string& CgiHandler::getPendingBody() const
 {
 	return _pendingBody;
@@ -326,6 +297,20 @@ void CgiHandler::closeWriteFd()
 	}
 }
 
+void CgiHandler::setContentLength(size_t length)
+{
+	// Delete previous one
+	for (std::vector<std::string>::iterator it = _env.begin(); it != _env.end(); )
+	{
+		if (it->find("CONTENT_LENGTH=") == 0)
+			it = _env.erase(it);
+		else
+			++it;
+	}
+	// Add new
+	_env.push_back("CONTENT_LENGTH=" + utils::unsignedLongToString(length));
+}
+
 ssize_t CgiHandler::readOutput()
 {
 	char buffer[4096];
@@ -357,6 +342,7 @@ bool CgiHandler::reapIfDone()
 			_exitStatus = 128 + WTERMSIG(status);
 		else
 			_exitStatus = -1;
+		_hasExited = true;
 		_pid = -1;
 		return true;
 	}
@@ -368,7 +354,35 @@ int  CgiHandler::getExitStatus() const
 	return _exitStatus;
 }
 
+bool CgiHandler::getHasExited() const
+{
+	return _hasExited;
+}
+
 HttpResponse CgiHandler::buildResponse() const
 {
 	return _parseCgiOutput();
+}
+
+void CgiHandler::incrementTicks()
+{
+	++_ticks;
+}
+
+size_t CgiHandler::getTicks() const
+{
+	return _ticks;
+}
+
+void CgiHandler::killProcess()
+{
+	if (_pid != -1)
+	{
+		kill(_pid, SIGKILL);
+		int status = 0;
+		waitpid(_pid, &status, 0);
+		_exitStatus = 128 + WTERMSIG(status);
+		_pid = -1;
+		_hasExited = true;
+	}
 }

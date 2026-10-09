@@ -20,15 +20,16 @@ class CgiHandler
 		std::string					_pendingBody;
 		size_t						_pendingOffset;
 		int							_clientFd;
+		bool						_hasExited;
+		size_t						_ticks;
 
 		bool _buildEnv(const HttpRequest& req, const std::string& clientIp, const std::string& serverName, unsigned int serverPort);
 		HttpResponse _parseCgiOutput() const;
 
 	public:
-		static std::string _dechunk(const std::string& body);
 		CgiHandler();
 		CgiHandler(const std::string& scriptPath, const std::string& interpreter, const HttpRequest& req,
-				const std::string& clientIp, const std::string& serverName, unsigned int serverPort);
+				const std::string& clientIp, const std::string& serverName, unsigned int serverPort, const std::string& finalBody);
 		CgiHandler(const CgiHandler& other);
 		CgiHandler& operator=(const CgiHandler& other);
 		~CgiHandler();
@@ -41,6 +42,8 @@ class CgiHandler
 		int getReadFd() const;
 		int getWriteFd() const;
 
+		int getPid() const;
+
 		const std::string& getPendingBody() const;
 		void setPendingBody(const std::string& body);
 
@@ -51,13 +54,20 @@ class CgiHandler
 		bool flushPending();
 		void closeWriteFd();
 
+		void setContentLength(size_t length);
+
 		ssize_t readOutput();
 		const std::string& getOutput() const;
 
 		bool reapIfDone();
 		int  getExitStatus() const;
+		bool getHasExited() const;
 
 		HttpResponse buildResponse() const;
+
+		void incrementTicks();
+		size_t getTicks() const;
+		void killProcess();
 };
 
 #endif

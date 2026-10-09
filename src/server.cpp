@@ -217,77 +217,100 @@ server::server(const Configuration& conf)
 {
 	_address.clear();
 
-	std::set<std::string> usedIps;
-	GlobalContext global = _conf->GetConf();
-
-	for (size_t i = 0; i < global.GetServers()->size(); i++)
+	try
 	{
-		ServerContext serverCont = global.GetServer(i);
+		std::set<std::string> usedIps;
+		GlobalContext global = _conf->GetConf();
 
-		if (!serverCont.GetListens())
-			continue;
-
-		for (size_t j = 0; j < serverCont.GetListens()->size(); j++)
+		for (size_t i = 0; i < global.GetServers()->size(); i++)
 		{
-			ServerContext::ServerListen servListen = *serverCont.GetListen(j);
+			ServerContext serverCont = global.GetServer(i);
 
-			// Key to avoid duplicates
-			std::ostringstream key;
-			key << servListen.serverIp << ":" << servListen.port;
-			if (usedIps.find(key.str()) != usedIps.end())
-				continue; // Already configured
+			if (!serverCont.GetListens())
+				continue;
 
-			struct sockaddr_in addr;
-			if (!setAddress(servListen.serverIp, servListen.port, addr))
-				throw std::runtime_error("Invalid listen address: " + key.str());
-
-			// Create TCP socket
-			int fd = socket(AF_INET, SOCK_STREAM, 0);
-			if (fd == -1)
-				throw std::runtime_error("socket failed for " + key.str());
-
-			// Option SO_REUSEADDR
-			int opt = 1;
-			if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+			for (size_t j = 0; j < serverCont.GetListens()->size(); j++)
 			{
-				close(fd);
-				throw std::runtime_error("setsockopt failed for " + key.str());
+				ServerContext::ServerListen servListen = *serverCont.GetListen(j);
+
+				// Key to avoid duplicates
+				std::ostringstream key;
+				key << servListen.serverIp << ":" << servListen.port;
+				if (usedIps.find(key.str()) != usedIps.end())
+					continue; // Already configured
+
+				struct sockaddr_in addr;
+				if (!setAddress(servListen.serverIp, servListen.port, addr))
+					throw std::runtime_error("Invalid listen address: " + key.str());
+
+				// Create TCP socket
+				int fd = socket(AF_INET, SOCK_STREAM, 0);
+				if (fd == -1)
+					throw std::runtime_error("socket failed for " + key.str());
+
+				// Option SO_REUSEADDR
+				int opt = 1;
+				if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+				{
+					close(fd);
+					throw std::runtime_error("setsockopt failed for " + key.str());
+				}
+
+				// Bind
+				if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1)
+				{
+					close(fd);
+					throw std::runtime_error("bind failed for " + key.str());
+				}
+
+				// Listen
+				if (listen(fd, SOMAXCONN) == -1)
+				{
+					close(fd);
+					throw std::runtime_error("listen failed for " + key.str());
+				}
+
+				// Save fd in client
+				_listenSockets.push_back(fd);
+
+				// Add to _pollFds
+				struct pollfd pfd;
+				pfd.fd = fd;
+				pfd.events = POLLIN;
+				pfd.revents = 0;
+				_pollFds.push_back(pfd);
+
+				// Mark as used
+				usedIps.insert(key.str());
 			}
-
-			// Bind
-			if (bind(fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) == -1)
-			{
-				close(fd);
-				throw std::runtime_error("bind failed for " + key.str());
-			}
-
-			// Listen
-			if (listen(fd, SOMAXCONN) == -1)
-			{
-				close(fd);
-				throw std::runtime_error("listen failed for " + key.str());
-			}
-
-			// Save fd in client
-			_listenSockets.push_back(fd);
-
-			// Add to _pollFds
-			struct pollfd pfd;
-			pfd.fd = fd;
-			pfd.events = POLLIN;
-			pfd.revents = 0;
-			_pollFds.push_back(pfd);
-
-			// Mark as used
-			usedIps.insert(key.str());
 		}
+		if (_listenSockets.empty())
+			throw std::runtime_error("No listen directives found");
+		std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl; // TMP Eliminar al final
+		for (size_t i = 0; i < _listenSockets.size(); ++i)
+			std::cout << "Listen fd " << _listenSockets[i] << std::endl; // TMP Eliminar al final
+		std::cout << "_pollFds size: " << _pollFds.size() << std::endl; // TMP Eliminar al final
 	}
-	if (_listenSockets.empty())
-		throw std::runtime_error("No listen directives found");
-	std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl; // TMP Eliminar al final
-	for (size_t i = 0; i < _listenSockets.size(); ++i)
-		std::cout << "Listen fd " << _listenSockets[i] << std::endl; // TMP Eliminar al final
-	std::cout << "_pollFds size: " << _pollFds.size() << std::endl; // TMP Eliminar al final
+	catch (...)
+    {
+        // Cleanup antes de propagar
+        for (size_t i = 0; i < _listenSockets.size(); ++i)
+            if (_listenSockets[i] != -1)
+                close(_listenSockets[i]);
+        _listenSockets.clear();
+
+        for (size_t i = 0; i < _clients.size(); ++i)
+            delete _clients[i];
+        _clients.clear();
+
+        _pollFds.clear();
+        _newPollFds.clear();
+
+        delete _conf;
+        _conf = NULL;
+
+        throw;   // re-lanzar la excepción original
+    }
 }
 
 HttpResponse server::methodGet(const HttpRequest& req, const LocationContext& loc)
@@ -751,6 +774,12 @@ void server::run()
 					<< " events=" << _pollFds[k].events
 					<< " revents=" << _pollFds[k].revents << std::endl;
 		int ret = poll(&_pollFds[0], _pollFds.size(), TIME_OUT);
+		if (ret == 0)
+		{
+			_cgiManager.tickAll();
+			_cgiManager.checkTimeouts();
+			continue;
+		}
 		if (ret < 0)
 		{
 			std::cout << "Hola error" << std::endl; // TMP
@@ -876,40 +905,35 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 		target = target.substr(0, q);
 	std::string scriptPath = utils::joinPath(*loc.GetRoot(), target);
 
-	CgiHandler* cgi = _cgiManager.startCgi(scriptPath, *interpreter, req, cli->getClientIp(), *serv.GetServerName(0), listen.port);
-	std::cout << "[CGI] created readFd=" << (cgi ? cgi->getReadFd() : -1)
-		<< " writeFd=" << (cgi ? cgi->getWriteFd() : -1) << std::endl; // TMP
+	std::string finalBody;
+	if (req.getMethod() == Http::POST)
+	{
+		const std::string* body = req.getRawBody();
+		if (body && !body->empty())
+			finalBody = *body;
+	}
+	
+	CgiHandler* cgi = _cgiManager.startCgi(scriptPath, *interpreter, req, cli->getClientIp(), *serv.GetServerName(0), listen.port, finalBody);
+
 	if (!cgi)
 	{
 		cli->prepareResponse(getErrorPage(loc, 500).getStringMessage());
 		return;
 	}
 
-	std::cout << "[CGI] client fd=" << cli->getFd()
-          << " cgiReadFd=" << cgi->getReadFd()
-          << " cgiWriteFd=" << cgi->getWriteFd() << std::endl;
-
 	cli->setCgi(cgi);
 	cgi->setClientFd(cli->getFd());
 
-	// Registrar fds del CGI en poll
+	// Register Read FD from CGI in POLL
 	struct pollfd pfdRead;
 	pfdRead.fd = cgi->getReadFd();
 	pfdRead.events = POLLIN;
 	pfdRead.revents = 0;
 	_newPollFds.push_back(pfdRead);
 
-	if (req.getMethod() == Http::POST)
+	// Register Write FD if it is POST
+	if (req.getMethod() == Http::POST && !finalBody.empty())
 	{
-		const std::string* body = req.getContent();
-		if (body)
-		{
-			std::string finalBody = *body;
-			const std::string* te = req.getHeader("Transfer-Encoding");
-			if (te && *te == "chunked")
-				finalBody = CgiHandler::_dechunk(*body);
-			cgi->setPendingBody(finalBody);
-		}
 		struct pollfd pfdWrite;
 		pfdWrite.fd = cgi->getWriteFd();
 		pfdWrite.events = POLLOUT;
@@ -917,9 +941,7 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 		_newPollFds.push_back(pfdWrite);
 	}
 	else
-	{
-		cgi->closeWriteFd();  // sin body que enviar
-	}
+		cgi->closeWriteFd();   // GET, DELETE, or POST without body
 }
 
 void server::handleCgiFinished(CgiHandler* cgi)
@@ -935,7 +957,15 @@ void server::handleCgiFinished(CgiHandler* cgi)
 	client* cli = findClientByFd(clientFd);
 	if (cli)
 	{
-		HttpResponse response = cgi->buildResponse();
+		cgi->reapIfDone();
+
+		HttpResponse response;
+		if (cgi->getHasExited() && cgi->getExitStatus() == 128 + SIGKILL)
+            response = getErrorPage(_conf->GetConf(), 504);
+		else if (cgi->getHasExited() && cgi->getExitStatus() != 0)
+			response = getErrorPage(_conf->GetConf(), 500);
+		else
+			response = cgi->buildResponse();
 		cli->prepareResponse(response.getStringMessage());
 		cli->setCgi(NULL);
 
