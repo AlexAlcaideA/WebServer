@@ -76,28 +76,21 @@ void Configuration::ProcessDirective(const std::vector<std::string>& args,
 {
 	if (args.empty())
 		return;
-	try
+
+	switch (ctx)
 	{
-		switch (ctx)
-		{
-			case GLOBAL:
-				if (global)
-					ProcessGlobalDirective(args, global);
-				break;
-			case SERVER:
-				if (server)
-					ProcessServerDirective(args, server);
-				break;
-			case LOCATION:
-				if (location)
-					ProcessLocationDirective(args, location);
-				break;
-		}
-	}
-	catch (const std::exception& e)
-	{
-		std::cerr << "Config error: " << e.what() << std::endl;
-		// TEMP Decide si continuar o relanzar
+		case GLOBAL:
+			if (global)
+				ProcessGlobalDirective(args, global);
+			break;
+		case SERVER:
+			if (server)
+				ProcessServerDirective(args, server);
+			break;
+		case LOCATION:
+			if (location)
+				ProcessLocationDirective(args, location);
+			break;
 	}
 }
 
@@ -126,6 +119,8 @@ void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
 	{
 		if (args.size() < 2)
 			throw std::invalid_argument("autoindex requires on/off");
+		if (args[1] != "on" && args[1] != "off")
+			throw std::invalid_argument("global: autoindex must be 'on' or 'off', got: " + args[1]);
 		global->SetAutoIndex(args[1] == "on");
 	}
 	else if (directive == "client_max_body_size")
@@ -133,7 +128,9 @@ void Configuration::ProcessGlobalDirective(const std::vector<std::string>& args,
 		if (args.size() < 2)
 			throw std::invalid_argument("client_max_body_size requires a size");
 		unsigned long long num;
-		utils::stringToBytes(args[1], num) ? global->SetClientMaxBodySize(num) : global->SetClientMaxBodySize(1024 * 1024);
+		if (!utils::stringToBytes(args[1], num))
+			throw std::invalid_argument("global: invalid size for client_max_body_size: " + args[1]);
+		global->SetClientMaxBodySize(num);
 	}
 	else if (directive == "error_page")
 	{
@@ -155,7 +152,7 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 	if (directive == "root")
 	{
 		if (args.size() < 2)
-			throw std::invalid_argument("root requires a path");
+			throw std::invalid_argument("server: root requires a path");
 		server->SetRoot(args[1]);
 	}
 	else if (directive == "index")
@@ -166,34 +163,38 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 	else if (directive == "autoindex")
 	{
 		if (args.size() < 2)
-			throw std::invalid_argument("autoindex requires on/off");
+			throw std::invalid_argument("server: autoindex requires on/off");
+		if (args[1] != "on" && args[1] != "off")
+			throw std::invalid_argument("server: autoindex must be 'on' or 'off', got: " + args[1]);
 		server->SetAutoIndex(args[1] == "on");
 	}
 	else if (directive == "client_max_body_size")
 	{
 		if (args.size() < 2)
-			throw std::invalid_argument("client_max_body_size requires a size");
+			throw std::invalid_argument("server: client_max_body_size requires a size");
 		unsigned long long num;
-		utils::stringToBytes(args[1], num) ? server->SetClientMaxBodySize(num) : server->SetClientMaxBodySize(1024 * 1024);
+		if (!utils::stringToBytes(args[1], num))
+			throw std::invalid_argument("server: invalid size for client_max_body_size: " + args[1]);
+		server->SetClientMaxBodySize(num);
 	}
 	else if (directive == "error_page")
 	{
 		if (args.size() < 3)
-			throw std::invalid_argument("error_page requires code and page");
+			throw std::invalid_argument("server: error_page requires code and page");
 		unsigned int code;
 		if (!utils::stringToUnsignedInt(args[1], code))
-			throw std::invalid_argument("invalid error code: " + args[1]);
+			throw std::invalid_argument("server: invalid error code: " + args[1]);
 		server->AddErrorPage(code, args[2]);
 	}
 	// Directives from the server context
 	else if (directive == "listen")
 	{
 		if (args.size() < 2)
-			throw std::invalid_argument("listen requires port");
+			throw std::invalid_argument("server: listen requires port");
 		unsigned int port;
 		// The last element is the port
 		if (!utils::stringToUnsignedInt(args[args.size()-1], port))
-			throw std::invalid_argument("invalid port: " + args[args.size()-1]);
+			throw std::invalid_argument("server: invalid port: " + args[args.size()-1]);
 		try
 		{
 			if (args.size() == 2) // only port
@@ -201,7 +202,7 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 			else if (args.size() == 3) // IP and port
 				server->SetListen(args[1], port);
 			else
-				throw std::invalid_argument("listen takes 1 or 2 arguments");
+				throw std::invalid_argument("server: listen takes 1 or 2 arguments");
 		}
 		catch(const std::exception& e)
 		{
@@ -216,14 +217,14 @@ void Configuration::ProcessServerDirective(const std::vector<std::string>& args,
 	else if (directive == "cgi_handler")
 	{
 		if (args.size() != 3)
-			throw std::invalid_argument("cgi_handler requires extension and interpreter");
+			throw std::invalid_argument("server: cgi_handler requires extension and interpreter");
 		if (!args[2].empty() && args[2][0] != '/')
 			server->SetCgiHandler(args[1], "/usr/bin/" + args[2]);
 		else
 			server->SetCgiHandler(args[1], args[2]);
 	}
 	else if (directive == "location")
-		std::cerr << "Error: 'location' debe ser un bloque (location ... { ... })" << std::endl;
+		std::cerr << "server: 'location' must be a block (location ... { ... })" << std::endl;
 	// The addition of locations is done from the parser when encountering a location block,
 	// not through this function.
 }
@@ -237,7 +238,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
     if (directive == "root")
 	{
         if (args.size() < 2)
-			throw std::invalid_argument("root requires a path");
+			throw std::invalid_argument("location '" + location->GetPath() + "': root requires a path");
         location->SetRoot(args[1]);
     }
     else if (directive == "index")
@@ -248,23 +249,27 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
     else if (directive == "autoindex")
 	{
         if (args.size() < 2)
-			throw std::invalid_argument("autoindex requires on/off");
+			throw std::invalid_argument("location '" + location->GetPath() + "': autoindex requires on/off");
+		if (args[1] != "on" && args[1] != "off")
+			throw std::invalid_argument("location: autoindex must be 'on' or 'off', got: " + args[1]);
         location->SetAutoIndex(args[1] == "on");
     }
     else if (directive == "client_max_body_size")
 	{
         if (args.size() < 2)
-			throw std::invalid_argument("client_max_body_size requires a size");
+			throw std::invalid_argument("location '" + location->GetPath() + "': client_max_body_size requires a size");
         unsigned long long num;
-		utils::stringToBytes(args[1], num) ? location->SetClientMaxBodySize(num) : location->SetClientMaxBodySize(1024 * 1024);
+		if (!utils::stringToBytes(args[1], num))
+			throw std::invalid_argument("location: invalid size for client_max_body_size: " + args[1]);
+		location->SetClientMaxBodySize(num);
     }
     else if (directive == "error_page")
 	{
         if (args.size() < 3)
-			throw std::invalid_argument("error_page requires code and page");
+			throw std::invalid_argument("location '" + location->GetPath() + "': error_page requires code and page");
         unsigned int code;
         if (!utils::stringToUnsignedInt(args[1], code))
-            throw std::invalid_argument("invalid error code: " + args[1]);
+            throw std::invalid_argument("location '" + location->GetPath() + "': invalid error code: " + args[1]);
         location->AddErrorPage(code, args[2]);
     }
     // Location context directives
@@ -280,7 +285,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
 			}
             catch(...)
         	{
-         		throw std::invalid_argument("Couldn't find method; " + args[i]);
+         		throw std::invalid_argument("location '" + location->GetPath() + "': Couldn't find method; " + args[i]);
          	}
             methods.push_back(m);
 		}
@@ -290,17 +295,17 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
 	{
 		std::cout << "Leo bien" << std::endl; // TMP borrar
         if (args.size() < 2)
-			throw std::invalid_argument("upload_store requires a path");
+			throw std::invalid_argument("location '" + location->GetPath() + "': upload_store requires a path");
 		std::cout << "Paso el test de size" << std::endl; // TMP borrar
         location->SetUploadStore(args[1]);
     }
     else if (directive == "return")
 	{
         if (args.size() < 2)
-			throw std::invalid_argument("return requires a code");
+			throw std::invalid_argument("location '" + location->GetPath() + "': return requires a code");
         unsigned int code;
         if (!utils::stringToUnsignedInt(args[1], code))
-            throw std::invalid_argument("invalid return code: " + args[1]);
+            throw std::invalid_argument("location '" + location->GetPath() + "': invalid return code: " + args[1]);
         const std::string* urlPtr = NULL;
         std::string urlStr;
         if (args.size() >= 3)
@@ -313,7 +318,7 @@ void Configuration::ProcessLocationDirective(const std::vector<std::string>& arg
     else if (directive == "cgi_handler")
 	{
         if (args.size() != 3)
-			throw std::invalid_argument("cgi_handler requires extension and interpreter");
+			throw std::invalid_argument("location '" + location->GetPath() + "': cgi_handler requires extension and interpreter");
 		if (!args[2].empty() && args[2][0] != '/')
 			location->SetCgiHandler(args[1], "/usr/bin/" + args[2]);
 		else
@@ -370,7 +375,7 @@ bool Configuration::Parse()
 				}
 				catch(const std::exception& e)
 				{
-					std::cerr << e.what() << std::endl;
+					std::cerr << "Config error: " << e.what() << std::endl;
 					return false;
 				}
 				args.clear();
@@ -582,6 +587,10 @@ void CheckGlobal(GlobalContext& global)
 		utils::stringToBytes("1m", num);
 		global.SetClientMaxBodySize(num);
 	}
+
+	if (global.GetServers() == NULL || global.GetServers()->empty())
+		throw std::invalid_argument("Configuration error: no server blocks defined");
+
 	for (size_t i = 0; i < global.GetServers()->size(); i++)
 		CheckServer(global, global.GetServer(i));
 }
