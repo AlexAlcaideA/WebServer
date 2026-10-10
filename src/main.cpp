@@ -34,7 +34,6 @@ int main(int argc, char **argv)
 	{
 		Configuration tmp(confRoot);
 		conf = tmp;
-		std::cout << conf << std::endl;
 	}
 	catch (const std::exception& e)
 	{

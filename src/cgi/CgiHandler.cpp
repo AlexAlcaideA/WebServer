@@ -44,9 +44,6 @@ bool CgiHandler::_buildEnv(const HttpRequest& req, const std::string& clientIp, 
 
 HttpResponse CgiHandler::_parseCgiOutput() const
 {
-	std::cout << "[CGI DEBUG] Output raw: [" << _output << "]" << std::endl; // TMP
-	std::cout << "[CGI DEBUG] Output size: " << _output.size() << std::endl; // TMP
-
 	size_t headerEnd = _output.find("\r\n\r\n");
 	size_t sepLen = 4;
 
@@ -209,11 +206,6 @@ bool CgiHandler::start()
 	fcntl(_writeFd, F_SETFL, O_NONBLOCK);
 	fcntl(_readFd, F_SETFL, O_NONBLOCK);
 
-	std::cout << "[CGI] parent kept: writeFd=" << _writeFd
-          << " readFd=" << _readFd
-          << " (should have closed pipeIn[0]=" << pipeIn[0]
-          << " and pipeOut[1]=" << pipeOut[1] << ")" << std::endl;
-
 	return true;
 }
 
@@ -315,8 +307,6 @@ ssize_t CgiHandler::readOutput()
 {
 	char buffer[4096];
 	ssize_t n = read(_readFd, buffer, sizeof(buffer));
-	std::cout << "[CGI] readOutput fd=" << _readFd
-          << " n=" << n << std::endl; // TMP
 	if (n > 0)
 		_output.append(buffer, n);
 	return n;

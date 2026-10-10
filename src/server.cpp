@@ -76,9 +76,7 @@ HttpResponse getIndexList(DIR* dir, const std::string& requestPath, const std::s
 		if (name == "." || name == "..")
 			continue;
 
-		std::cout << "Root: " << root << std::endl; // TMP
 		std::string fullPath = requestPath;
-		std::cout << "Full path: " << fullPath << std::endl; // TMP
 		if (!fullPath.empty() && fullPath[fullPath.size() - 1] != '/')
 			fullPath += '/';
 		fullPath += name;
@@ -87,7 +85,6 @@ HttpResponse getIndexList(DIR* dir, const std::string& requestPath, const std::s
 		bool isDir = (stat(fullPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode));
 
 		std::string displayName = name + (isDir ? "/" : "");
-		std::cout << "Index List: " << fullPath << std::endl; // TMP
 		html << "<a href=\"" << fullPath << "\">" << displayName << "</a>\n";
 	}
 	html << "</pre><hr></body></html>";
@@ -286,10 +283,6 @@ server::server(const Configuration& conf)
 		}
 		if (_listenSockets.empty())
 			throw std::runtime_error("No listen directives found");
-		std::cout << "Total listen sockets: " << _listenSockets.size() << std::endl; // TMP Eliminar al final
-		for (size_t i = 0; i < _listenSockets.size(); ++i)
-			std::cout << "Listen fd " << _listenSockets[i] << std::endl; // TMP Eliminar al final
-		std::cout << "_pollFds size: " << _pollFds.size() << std::endl; // TMP Eliminar al final
 	}
 	catch (...)
 	{
@@ -328,31 +321,24 @@ HttpResponse server::methodGet(const HttpRequest& req, const LocationContext& lo
 		return getErrorPage(loc, 405); // TMP Cambiar por pagina y error correcto
 
 	std::string rootPath = *loc.GetRoot();
-	std::cout << "RootPath is: " << rootPath << std::endl; // TMP Eliminar al final
 
 	HttpResponse response;
 	std::string answer;
 	switch (loc.GetIndexPath(req.getRequestTarget(), rootPath)) // Check for path root + index name to exist
 	{
 		case LocationContext::PATH_NOT_FOUND:
-			std::cout << "Path not found" << std::endl; // TMP
 			return getErrorPage(loc, 404);
 		case LocationContext::PATH_DIR_NO_INDEX:
-			std::cout << "Path no index" << std::endl; // TMP
 			if (loc.GetAutoIndex() && *(loc.GetAutoIndex()))
 				return getAutoIndex(loc, req.getRequestTarget());
 			return getErrorPage(loc, 403);
 		case LocationContext::PATH_DIR_WITH_INDEX:
-			std::cout << "Path with index" << std::endl; // TMP
 			response = buildResponse(rootPath);
 			answer = response.getStringMessage();
-			std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
 			return response;
 		case LocationContext::PATH_FILE:
-			std::cout << "Path is file" << std::endl; // TMP
 			response = buildResponse(rootPath);
 			answer = response.getStringMessage();
-			std::cout << answer << std::endl; // TMP Borrar, solo para debug de ver la respuesta
 			return response;
 		default:
 			return getErrorPage(loc, 500);
@@ -541,7 +527,6 @@ void server::handleClient(int fd)
 		return;
 
 	HttpRequest request(cli->getRawData());
-	std::cout << "Request text:\n" << request << std::endl;
 
 	const std::string* host = request.getHeader(HttpHeaders::HOST);
 	if (!host) // Check for Header "Host"
@@ -563,20 +548,10 @@ void server::handleClient(int fd)
 		cli->prepareResponse(getErrorPage(*serv, 404).getStringMessage()); // TMP Cambiar por pagina y error correcto
 		return;
 	}	
-		
-	std::cout << "Hay location. Name: " << loc->GetPath() << std::endl; // TMP Eliminar al final
-	std::cout << "Hola location" << std::endl;
 
 	std::string ext = utils::extractExtension(request.getRequestTarget());
-	std::cout << "[DEBUG] Path: " << request.getRequestTarget() // TMP
-			<< " ext: [" << ext << "]" << std::endl;
 
 	const std::string* interp = loc->GetCgiHandler(ext);
-	std::cout << "[DEBUG] Interpreter: "
-			<< (interp ? *interp : "NULL") << std::endl;
-
-	std::cout << "[DEBUG] isCgiRequest: "
-			<< (isCgiRequest(request, *loc) ? "true" : "false") << std::endl;
 
 	if (isCgiRequest(request, *loc))
 	{
@@ -622,7 +597,6 @@ client* server::findClientByFd(int fd)
 
 void server::removeClientByFd(int fd)
 {
-	std::cout << "[REMOVE] fd=" << fd << std::endl;
 	// Delete from CGI
 	for (size_t i = 0; i < _clients.size(); ++i)
 	{
@@ -661,7 +635,6 @@ void server::removeClientByFd(int fd)
 			break;
 		}
 	}
-	std::cout << "Close client: " << fd << std::endl; // TMP
 }
 
 std::pair<std::string, unsigned short> server::getLocalAddressInfo(int clientFd)
@@ -768,11 +741,6 @@ void server::run()
 {
 	while (g_running)
 	{
-		std::cout << "[POLL] iteración, nfds=" << _pollFds.size() << std::endl;
-		for (size_t k = 0; k < _pollFds.size(); ++k)
-			std::cout << "  fd=" << _pollFds[k].fd
-					<< " events=" << _pollFds[k].events
-					<< " revents=" << _pollFds[k].revents << std::endl;
 		int ret = poll(&_pollFds[0], _pollFds.size(), TIME_OUT);
 		if (ret == 0)
 		{
@@ -782,7 +750,6 @@ void server::run()
 		}
 		if (ret < 0)
 		{
-			std::cout << "Hola error" << std::endl; // TMP
 			if (g_running)
 				throw std::runtime_error("poll failed");
 			continue;
@@ -946,13 +913,9 @@ void server::handleCgi(client* cli, const HttpRequest& req, const ServerContext&
 
 void server::handleCgiFinished(CgiHandler* cgi)
 {
-	int cgiReadFd  = cgi->getReadFd();    // sigue siendo 7
-	int cgiWriteFd = cgi->getWriteFd();   // sigue siendo 6
-	int clientFd   = cgi->getClientFd();  // 4
-
-	std::cout << "[CGI] finished clientFd=" << clientFd
-			<< " readFd=" << cgiReadFd
-			<< " output=[" << cgi->getOutput() << "]" << std::endl;
+	int cgiReadFd  = cgi->getReadFd();
+	int cgiWriteFd = cgi->getWriteFd();
+	int clientFd   = cgi->getClientFd();
 
 	client* cli = findClientByFd(clientFd);
 	if (cli)
