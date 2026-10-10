@@ -59,7 +59,7 @@ HttpResponse getErrorPage(const GlobalContext& global, unsigned int error)
 	return HttpResponse(HTTP_VER, map, body.size(), body, error, HttpStatus::reasonPhrase(error));
 }
 
-HttpResponse getIndexList(DIR* dir, const std::string& requestPath, const std::string& root)
+HttpResponse getIndexList(DIR* dir, const std::string& requestPath)
 {
 	std::ostringstream html;
 	html << "<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\">";
@@ -104,7 +104,7 @@ HttpResponse getAutoIndex(const LocationContext& loc, const std::string& request
 	DIR* dir = opendir(root.c_str());
 	if (!dir)
 		return getErrorPage(loc, 404);
-	return getIndexList(dir, requestPath, *loc.GetRoot());
+	return getIndexList(dir, requestPath);
 }
 
 HttpResponse getAutoIndex(const ServerContext& serv, const std::string& requestPath)
@@ -114,7 +114,7 @@ HttpResponse getAutoIndex(const ServerContext& serv, const std::string& requestP
 	DIR* dir = opendir(root.c_str());
 	if (!dir)
 		return getErrorPage(serv, 404);
-	return getIndexList(dir, requestPath, *serv.GetRoot());
+	return getIndexList(dir, requestPath);
 }
 
 HttpResponse getAutoIndex(const GlobalContext& global, const std::string& requestPath)
@@ -124,7 +124,7 @@ HttpResponse getAutoIndex(const GlobalContext& global, const std::string& reques
 	DIR* dir = opendir(root.c_str());
 	if (!dir)
 		return getErrorPage(global, 404);
-	return getIndexList(dir, requestPath, *global.GetRoot());
+	return getIndexList(dir, requestPath);
 }
 
 HttpResponse buildResponse(const std::string& rootPath)
@@ -550,8 +550,6 @@ void server::handleClient(int fd)
 	}	
 
 	std::string ext = utils::extractExtension(request.getRequestTarget());
-
-	const std::string* interp = loc->GetCgiHandler(ext);
 
 	if (isCgiRequest(request, *loc))
 	{
