@@ -54,8 +54,9 @@ HttpResponse CgiHandler::_parseCgiOutput() const
 	}
 
 	if (headerEnd == std::string::npos)
+	{
 		return HttpResponse(HTTP_VER, std::map<std::string, std::string>(), 500);
-
+	}
 	std::string headersBlock = _output.substr(0, headerEnd);
 	std::string body = _output.substr(headerEnd + sepLen);
 
@@ -189,8 +190,6 @@ bool CgiHandler::start()
 		for (size_t i = 0; i < _env.size(); ++i)
 			envp.push_back(const_cast<char*>(_env[i].c_str()));
 		envp.push_back(NULL);
-		std::cerr << "[CGI child] chdir to: " << dir
-              << " argv[1]: " << filename << std::endl; // TMP
 		execve(_interpreter.c_str(), argv.data(), envp.data());
 		std::cerr << "[CGI child] execve failed: " << strerror(errno) << std::endl; // TMP
 		_exit(127); // failed
